@@ -5,6 +5,7 @@ export default [
   {
     ignores: ['node_modules/**', 'dist/**'],
   },
+  // Type-aware rules (no-floating-promises, etc.) require parserOptions.project — deferred until tsconfig paths are stable.
   ...tsPlugin.configs['flat/recommended'],
   prettierConfig,
 ];
