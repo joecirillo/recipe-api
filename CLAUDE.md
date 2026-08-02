@@ -48,6 +48,7 @@ build those first to establish conventions before tackling Recipe.
 - Migrations: `npx drizzle-kit generate` then `npx drizzle-kit push`
 - Tests: `pnpm test`
 - Lint: `pnpm run lint`
+- Format check: `pnpm run format:check` (use `pnpm run format` to auto-fix)
 
 ## Definition of done for a migrated resource
 

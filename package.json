@@ -5,13 +5,19 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy --minify",
     "cf-typegen": "wrangler types --env-interface CloudflareBindings",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "dependencies": {
     "hono": "^4.12.32"
   },
   "devDependencies": {
-    "eslint": "^8.56.0",
+    "@typescript-eslint/eslint-plugin": "^8.65.0",
+    "@typescript-eslint/parser": "^8.65.0",
+    "eslint": "^10.8.0",
+    "eslint-config-prettier": "^10.1.5",
+    "prettier": "^3.6.2",
     "wrangler": "^4.110.0"
   }
 }
