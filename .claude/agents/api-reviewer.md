@@ -24,6 +24,7 @@ When invoked, review the current diff (`git diff` or the files you're pointed at
    interpolation into queries, auth middleware actually applied to the route.
 
 Output format:
+
 - **Blocking issues** — must fix before merge, with file:line and why
 - **Should fix** — real but not blocking
 - **Notes** — optional improvements
