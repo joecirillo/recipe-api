@@ -4,12 +4,14 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy --minify",
-    "cf-typegen": "wrangler types --env-interface CloudflareBindings"
+    "cf-typegen": "wrangler types --env-interface CloudflareBindings",
+    "lint": "eslint ."
   },
   "dependencies": {
     "hono": "^4.12.32"
   },
   "devDependencies": {
+    "eslint": "^8.56.0",
     "wrangler": "^4.110.0"
   }
 }
