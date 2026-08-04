@@ -7,17 +7,23 @@
     "cf-typegen": "wrangler types --env-interface CloudflareBindings",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "hono": "^4.12.32"
+    "drizzle-orm": "^0.45.2",
+    "hono": "^4.12.32",
+    "postgres": "^3.4.9",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^8.65.0",
     "@typescript-eslint/parser": "^8.65.0",
+    "drizzle-kit": "^0.31.10",
     "eslint": "^10.8.0",
     "eslint-config-prettier": "^10.1.5",
     "prettier": "^3.6.2",
+    "vitest": "^4.1.10",
     "wrangler": "^4.110.0"
   }
 }
