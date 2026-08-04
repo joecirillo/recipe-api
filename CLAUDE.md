@@ -42,6 +42,14 @@ build those first to establish conventions before tackling Recipe.
 - Partial updates (PATCH) should ignore undefined fields, but null should nullify them. Null fields are ignored
   in recipe-service, null fields in recipe-api should clear the field
 
+## Branch naming
+
+- Format: `<type>/<issue-number>-<short-kebab-case-description>`
+- Types: feat, fix, chore, refactor
+- Example: `feat/142-fastapi-recipe-search`
+- Always create branches off the latest `main` unless told otherwise.
+- Pull the issue number from the GitHub issue being worked, and link a PR to its issue
+
 ## Commands
 
 - Dev server: `pnpm dev`
