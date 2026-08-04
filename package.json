@@ -17,6 +17,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@types/node": "^26.1.2",
     "@typescript-eslint/eslint-plugin": "^8.65.0",
     "@typescript-eslint/parser": "^8.65.0",
     "drizzle-kit": "^0.31.10",
