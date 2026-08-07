@@ -33,10 +33,11 @@ build those first to establish conventions before tackling Recipe.
 
 ## Conventions
 
-- Directory layout: `src/routes/`, `src/db/schema/`, `src/services/`, `src/middleware/`
+- Directory layout: `src/routes/`, `src/db/schema/`, `src/services/`, `src/middleware/`, `src/lib/`
 - One Drizzle schema file per resource in `src/db/schema/`
-- Response envelope: `{ data, error }` (mirrors the old response envelope pattern —
-  update this line once the exact shape is finalized)
+- Success envelope: `{ timestamp: string, status: number, message: string, data: unknown }` (`SuccessResponse` in `src/lib/response.ts`)
+- Error envelope: `{ timestamp: string, status: number, message: string, path: string }` (`ErrorResponse` in `src/lib/response.ts`)
+- Use `buildSuccess` / `buildError` from `src/lib/response.ts` in all route handlers — never construct the envelope inline
 - Auth: API-key middleware, equivalent to the Spring Security filter in the old repo
 - Rate limiting: middleware equivalent to the old Bucket4j setup
 - Partial updates (PATCH) should ignore undefined fields, but null should nullify them. Null fields are ignored
