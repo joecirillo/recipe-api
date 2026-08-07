@@ -1,8 +1,12 @@
 import { Hono } from 'hono'
+import { errorHandler } from './middleware/errorHandler'
+import { buildSuccess } from './lib/response'
 
 const app = new Hono<{ Bindings: CloudflareBindings }>()
 
-app.get('/health', (c) => c.json({ data: { status: 'ok' }, error: null }))
+app.onError(errorHandler)
+
+app.get('/health', (c) => c.json(buildSuccess(200, 'OK', { status: 'ok' })))
 
 // Future routes mount here:
 // app.route('/api/v1/recipes', recipesRouter)
