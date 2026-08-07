@@ -53,7 +53,8 @@ build those first to establish conventions before tackling Recipe.
 ## Commands
 
 - Dev server: `pnpm dev`
-- Migrations: `npx drizzle-kit generate` then `npx drizzle-kit push`
+- Introspect (bootstrap schema from existing DB): `pnpm exec drizzle-kit introspect`
+- Migrations: `pnpm exec drizzle-kit generate` then `pnpm exec drizzle-kit push`
 - Tests: `pnpm test`
 - Lint: `pnpm run lint`
 - Format check: `pnpm run format:check` (use `pnpm run format` to auto-fix)
