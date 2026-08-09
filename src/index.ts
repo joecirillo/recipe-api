@@ -6,7 +6,7 @@ const app = new Hono<{ Bindings: CloudflareBindings }>()
 
 app.onError(errorHandler)
 
-app.get('/health', (c) => c.json(buildSuccess(200, 'OK', { status: 'ok' })))
+app.get('/health', (c) => c.json({ status: 'ok' }))
 
 // Future routes mount here:
 // app.route('/api/v1/recipes', recipesRouter)
