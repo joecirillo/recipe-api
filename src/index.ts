@@ -4,6 +4,7 @@ import { errorHandler } from './middleware/errorHandler'
 import { rateLimiterMiddleware } from './middleware/rateLimiter'
 import { cuisineRouter } from './routes/cuisines'
 import { tagRouter } from './routes/tags'
+import { unitRouter } from './routes/units'
 
 const app = new Hono<{ Bindings: CloudflareBindings }>()
 
@@ -16,5 +17,6 @@ app.use('*', rateLimiterMiddleware)
 
 app.route('/cuisines', cuisineRouter)
 app.route('/tags', tagRouter)
+app.route('/units', unitRouter)
 
 export default app
