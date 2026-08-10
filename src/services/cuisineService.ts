@@ -2,22 +2,24 @@ import { eq, ilike } from 'drizzle-orm'
 import { createDb } from '../db/client'
 import { cuisines, type Cuisine } from '../db/schema/cuisines'
 import { BadRequestError, NotFoundError } from '../errors'
+import type { NamedEntityResponse } from '../lib/types'
 
 type Db = ReturnType<typeof createDb>
 
-export type CuisineResponse = { id: number; name: string }
-
-function toResponse(row: Cuisine): CuisineResponse {
+function toResponse(row: Cuisine): NamedEntityResponse {
   return { id: row.id, name: row.name }
 }
 
-export async function listCuisines(db: Db): Promise<CuisineResponse[]> {
+export async function listCuisines(db: Db): Promise<NamedEntityResponse[]> {
   const rows = await db.select().from(cuisines)
   return rows.map(toResponse)
 }
 
-export async function searchCuisines(db: Db, query: string): Promise<CuisineResponse[]> {
-  const rows = await db.select().from(cuisines).where(ilike(cuisines.name, `%${query}%`))
+export async function searchCuisines(db: Db, query: string): Promise<NamedEntityResponse[]> {
+  const rows = await db
+    .select()
+    .from(cuisines)
+    .where(ilike(cuisines.name, `%${query}%`))
   return rows.map(toResponse)
 }
 

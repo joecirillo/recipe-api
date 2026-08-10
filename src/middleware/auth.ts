@@ -13,8 +13,7 @@ export const authMiddleware: MiddlewareHandler<{ Bindings: CloudflareBindings }>
   const userKey = c.env.USER_API_KEY
   const adminKey = c.env.ADMIN_API_KEY
 
-  const isAdminRoute =
-    c.req.method === 'DELETE' && ADMIN_ROUTE_REGEX.test(c.req.path)
+  const isAdminRoute = c.req.method === 'DELETE' && ADMIN_ROUTE_REGEX.test(c.req.path)
 
   if (apiKey) {
     if (isAdminRoute && apiKey === adminKey) {

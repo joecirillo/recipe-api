@@ -17,10 +17,13 @@ confirmation before writing anything.
 
 2. **Fetch current state.** For each affected issue, retrieve the current title, body,
    labels, assignees, milestone, and (if relevant) blocking relationships:
+
    ```
    gh issue view <number> --json number,title,body,labels,assignees,milestone,state
    ```
+
    For blocking relationships:
+
    ```
    gh api graphql -f query='{ repository(owner: "{owner}", name: "{repo}") { issue(number: <N>) { blockedBy(first: 20) { nodes { number title } } blocking(first: 20) { nodes { number title } } } } }'
    ```
@@ -29,8 +32,8 @@ confirmation before writing anything.
    each issue. For blocking relationships, show additions and removals as:
    - `+ #12 now blocks #15`
    - `- #12 no longer blocks #15`
-   For body edits, show the changed section only (not the full body) unless the body
-   is short.
+     For body edits, show the changed section only (not the full body) unless the body
+     is short.
 
 4. **Stop and wait for confirmation.** Do not apply anything until the user says yes.
    They may modify the proposal before confirming.
@@ -54,17 +57,17 @@ confirmation before writing anything.
 
 ## Supported update types
 
-| What to change | How to ask |
-|---|---|
-| Title | "rename #12 to …" |
-| Body (full replace or append) | "update the body of #12 to …" / "append … to #12" |
-| Labels | "add label `blocked` to #12", "remove `phase-1` from #8" |
-| Assignees | "assign #12 to @user" |
-| Milestone | "move #12 to milestone vX" |
-| State | "close #12", "reopen #15" |
-| Add blocking relationship | "#12 blocks #15" / "#15 is blocked by #12" |
-| Remove blocking relationship | "#12 no longer blocks #15" |
-| Bulk label/assignee update | "add `phase-2` to all issues in phase 2" |
+| What to change                | How to ask                                               |
+| ----------------------------- | -------------------------------------------------------- |
+| Title                         | "rename #12 to …"                                        |
+| Body (full replace or append) | "update the body of #12 to …" / "append … to #12"        |
+| Labels                        | "add label `blocked` to #12", "remove `phase-1` from #8" |
+| Assignees                     | "assign #12 to @user"                                    |
+| Milestone                     | "move #12 to milestone vX"                               |
+| State                         | "close #12", "reopen #15"                                |
+| Add blocking relationship     | "#12 blocks #15" / "#15 is blocked by #12"               |
+| Remove blocking relationship  | "#12 no longer blocks #15"                               |
+| Bulk label/assignee update    | "add `phase-2` to all issues in phase 2"                 |
 
 ## Rules
 
