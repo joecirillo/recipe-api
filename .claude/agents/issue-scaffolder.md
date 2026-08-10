@@ -38,16 +38,16 @@ those slices depend on each other — not just listing files.
    may edit either the issues or the dependency map before saying yes.
 6. Only after confirmation:
    a. Ensure required labels exist (`migration`, `phase-1`…`phase-N`, `blocked`,
-      `blocking`). Create any missing ones via `gh label create`.
+   `blocking`). Create any missing ones via `gh label create`.
    b. Create issues one at a time via `gh issue create`. Capture each issue's number
-      and URL as you go.
+   and URL as you go.
    c. Apply blocking relationships using the GitHub GraphQL API. For each
-      "X blocked by Y" pair, fetch both issues' node IDs then call:
-      ```
-      gh api graphql -f query='mutation { addBlockedBy(input: { issueId: "<X_node_id>", blockingIssueId: "<Y_node_id>" }) { issue { number } } }'
-      ```
+   "X blocked by Y" pair, fetch both issues' node IDs then call:
+   ```
+   gh api graphql -f query='mutation { addBlockedBy(input: { issueId: "<X_node_id>", blockingIssueId: "<Y_node_id>" }) { issue { number } } }'
+   ```
    d. Add the `blocked` label to every issue that has at least one blocker, and the
-      `blocking` label to every issue that blocks at least one other.
+   `blocking` label to every issue that blocks at least one other.
    e. Report back a summary: issue numbers/URLs and the blocking relationships applied.
 
 ## Rules
