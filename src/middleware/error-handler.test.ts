@@ -2,7 +2,7 @@ import { Hono } from 'hono'
 import { z } from 'zod'
 import { describe, expect, it } from 'vitest'
 import { BadRequestError, DuplicateError, NotFoundError } from '../errors'
-import { errorHandler } from './errorHandler'
+import { errorHandler } from './error-handler'
 
 function buildTestApp() {
   const app = new Hono()

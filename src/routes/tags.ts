@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { createDb } from '../db/client'
 import { buildSuccess } from '../lib/response'
-import { listTags, searchTags } from '../services/tagService'
+import { listTags, searchTags } from '../services/tag-service'
 
 export const tagRouter = new Hono<{ Bindings: CloudflareBindings }>()
 

@@ -1,11 +1,11 @@
 import { Hono } from 'hono'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { authMiddleware } from '../middleware/auth'
-import * as unitService from '../services/unitService'
+import * as unitService from '../services/unit-service'
 import { unitRouter } from './units'
 
 vi.mock('../db/client', () => ({ createDb: vi.fn(() => ({})) }))
-vi.mock('../services/unitService')
+vi.mock('../services/unit-service')
 
 type TestBindings = {
   USER_API_KEY: string

@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { createDb } from '../db/client'
 import { buildSuccess } from '../lib/response'
-import { listCuisines, searchCuisines } from '../services/cuisineService'
+import { listCuisines, searchCuisines } from '../services/cuisine-service'
 
 export const cuisineRouter = new Hono<{ Bindings: CloudflareBindings }>()
 
