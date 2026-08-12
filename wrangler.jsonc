@@ -4,21 +4,23 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-07-29",
   "compatibility_flags": ["nodejs_compat"],
-  // "vars": {
-  //   "MY_VAR": "my-variable"
-  // },
+  "vars": {
+    // Public base URL for the R2 bucket (e.g. https://pub-<hash>.r2.dev).
+    // Override per environment in the Cloudflare dashboard if needed.
+    "R2_PUBLIC_URL": "https://your-public-bucket-url.r2.dev"
+  },
   // "kv_namespaces": [
   //   {
   //     "binding": "MY_KV_NAMESPACE",
   //     "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
   //   }
   // ],
-  // "r2_buckets": [
-  //   {
-  //     "binding": "MY_BUCKET",
-  //     "bucket_name": "my-bucket"
-  //   }
-  // ],
+  "r2_buckets": [
+    {
+      "binding": "IMAGE_BUCKET",
+      "bucket_name": "recipe-images"
+    }
+  ],
   // "d1_databases": [
   //   {
   //     "binding": "MY_DB",
