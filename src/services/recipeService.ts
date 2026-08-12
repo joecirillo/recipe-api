@@ -1,4 +1,4 @@
-import { and, eq, ilike, inArray, type SQL } from 'drizzle-orm'
+import { and, asc, eq, ilike, inArray, type SQL } from 'drizzle-orm'
 import { createDb } from '../db/client'
 import {
   cuisines,
@@ -188,6 +188,7 @@ export async function listRecipes(db: Db, page: number, limit: number): Promise<
   const rows = await db
     .select({ id: recipes.id, name: recipes.name, imageUrl: recipes.imageUrl })
     .from(recipes)
+    .orderBy(asc(recipes.id))
     .limit(limit)
     .offset(page * limit)
   return rows.map((r) => ({ id: r.id, name: r.name, imageUrl: r.imageUrl ?? null }))
@@ -203,7 +204,7 @@ export async function searchRecipes(
   if (params.name?.trim()) {
     conditions.push(ilike(recipes.name, `%${params.name}%`))
   }
-  if (params.cuisineId) {
+  if (params.cuisineId !== undefined) {
     conditions.push(eq(recipes.cuisineId, params.cuisineId))
   }
   if (params.cuisine?.trim()) {
@@ -213,7 +214,7 @@ export async function searchRecipes(
       .where(ilike(cuisines.name, `%${params.cuisine}%`))
     conditions.push(inArray(recipes.cuisineId, cuisineSub))
   }
-  if (params.tagId) {
+  if (params.tagId !== undefined) {
     const tagSub = db
       .select({ recipeId: recipeTags.recipeId })
       .from(recipeTags)
@@ -231,7 +232,7 @@ export async function searchRecipes(
       .where(inArray(recipeTags.tagId, matchingTagIds))
     conditions.push(inArray(recipes.id, tagSub))
   }
-  if (params.ingredientId) {
+  if (params.ingredientId !== undefined) {
     const ingSub = db
       .select({ recipeId: recipeIngredients.recipeId })
       .from(recipeIngredients)

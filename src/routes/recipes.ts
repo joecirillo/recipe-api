@@ -22,13 +22,17 @@ const CuisineInputSchema = z
     message: 'Cuisine request must have either an ID or a name.',
   })
 
-const IngredientInputSchema = z.object({
-  id: z.number().int().positive().optional(),
-  name: z.string().optional(),
-  unitId: z.number().int().positive(),
-  quantity: z.number().positive(),
-  notes: z.string().nullish(),
-})
+const IngredientInputSchema = z
+  .object({
+    id: z.number().int().positive().optional(),
+    name: z.string().optional(),
+    unitId: z.number().int().positive(),
+    quantity: z.number().positive(),
+    notes: z.string().nullish(),
+  })
+  .refine((i) => i.id != null || (i.name?.trim().length ?? 0) > 0, {
+    message: 'Ingredient request must have either an ID or a name.',
+  })
 
 const TagInputSchema = z
   .object({
@@ -53,28 +57,32 @@ const RecipeSaveSchema = z.object({
     .min(2, 'Recipe name must be between 2 to 150 characters.')
     .max(150, 'Recipe name must be between 2 to 150 characters.'),
   description: z.string().default(''),
-  calories: z.number().int().min(0).nullable().optional(),
-  servings: z.number().int().positive('Servings must be a more than zero.'),
-  cookingTime: z.number().int().min(0, 'Cooking time cannot be negative.'),
-  preparationTime: z.number().int().positive('Preparation time cannot be zero minutes.'),
+  calories: z.number().int().min(0).max(32767).nullable().optional(),
+  servings: z.number().int().positive('Servings must be a more than zero.').max(32767),
+  cookingTime: z.number().int().min(0, 'Cooking time cannot be negative.').max(32767),
+  preparationTime: z.number().int().positive('Preparation time cannot be zero minutes.').max(32767),
   cuisine: CuisineInputSchema,
   ingredients: z.array(IngredientInputSchema).min(1, 'There must be at least one ingredient.'),
   steps: z.array(StepInputSchema).min(1, 'There must be at least one step.'),
   tags: z.array(TagInputSchema).optional().default([]),
-  author: z.string().default(''),
-  imageUrl: z.string().nullable().optional(),
+  author: z.string().max(255).default(''),
+  imageUrl: z.string().max(255).nullable().optional(),
 })
 
 const RecipeUpdateSchema = z.object({
-  name: z.string().min(2).max(150).optional(),
+  name: z
+    .string()
+    .min(2, 'Recipe name must be between 2 to 150 characters.')
+    .max(150, 'Recipe name must be between 2 to 150 characters.')
+    .optional(),
   description: z.string().optional(),
-  calories: z.number().int().min(0).nullable().optional(),
-  servings: z.number().int().positive().optional(),
-  cookingTime: z.number().int().min(0).optional(),
-  preparationTime: z.number().int().positive().optional(),
+  calories: z.number().int().min(0).max(32767).nullable().optional(),
+  servings: z.number().int().positive().max(32767).optional(),
+  cookingTime: z.number().int().min(0).max(32767).optional(),
+  preparationTime: z.number().int().positive().max(32767).optional(),
   cuisine: CuisineInputSchema.optional(),
-  author: z.string().optional(),
-  imageUrl: z.string().nullable().optional(),
+  author: z.string().max(255).optional(),
+  imageUrl: z.string().max(255).nullable().optional(),
   ingredients: z.array(IngredientInputSchema).min(1).optional(),
   tags: z.array(TagInputSchema).optional(),
   steps: z.array(StepInputSchema).min(1).optional(),

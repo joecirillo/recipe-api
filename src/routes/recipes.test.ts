@@ -132,6 +132,24 @@ describe('GET /recipes', () => {
     expect(vi.mocked(recipeService.listRecipes)).not.toHaveBeenCalled()
   })
 
+  it('returns 400 for non-numeric tagId', async () => {
+    const res = await request('/recipes?tagId=abc')
+    expect(res.status).toBe(400)
+    expect(vi.mocked(recipeService.searchRecipes)).not.toHaveBeenCalled()
+  })
+
+  it('returns 400 for non-numeric cuisineId', async () => {
+    const res = await request('/recipes?cuisineId=abc')
+    expect(res.status).toBe(400)
+    expect(vi.mocked(recipeService.searchRecipes)).not.toHaveBeenCalled()
+  })
+
+  it('returns 400 for non-numeric ingredientId', async () => {
+    const res = await request('/recipes?ingredientId=abc')
+    expect(res.status).toBe(400)
+    expect(vi.mocked(recipeService.searchRecipes)).not.toHaveBeenCalled()
+  })
+
   it('routes to searchRecipes when filter params are present', async () => {
     const res = await request('/recipes?name=pasta&cuisineId=1')
     expect(res.status).toBe(200)
@@ -310,6 +328,18 @@ describe('PATCH /recipes/:id', () => {
       1,
       expect.objectContaining({ calories: null }),
     )
+  })
+
+  it('returns 400 when ingredients is an empty array', async () => {
+    const res = await request('/recipes/1', { method: 'PATCH', body: { ingredients: [] } })
+    expect(res.status).toBe(400)
+    expect(vi.mocked(recipeService.updateRecipe)).not.toHaveBeenCalled()
+  })
+
+  it('returns 400 when steps is an empty array', async () => {
+    const res = await request('/recipes/1', { method: 'PATCH', body: { steps: [] } })
+    expect(res.status).toBe(400)
+    expect(vi.mocked(recipeService.updateRecipe)).not.toHaveBeenCalled()
   })
 
   it('returns 404 when recipe does not exist', async () => {
