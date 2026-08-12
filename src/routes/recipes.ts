@@ -1,12 +1,13 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { createDb } from '../db/client'
-import { buildSuccess } from '../lib/response'
+import { buildError, buildSuccess } from '../lib/response'
 import {
   createRecipe,
   deleteRecipe,
   getRecipe,
   listRecipes,
+  searchRecipes,
   updateRecipe,
 } from '../services/recipeService'
 
@@ -34,6 +35,8 @@ const StepInputSchema = z.object({
   stepNumber: z.number().int().positive(),
   description: z.string().min(1),
   tip: z.string().nullish(),
+  // imageUrl is intentionally excluded: step images cannot be set through the Recipe
+  // endpoint. The field is readable on GET responses but is managed separately.
 })
 
 const RecipeSaveSchema = z.object({
@@ -41,7 +44,7 @@ const RecipeSaveSchema = z.object({
     .string()
     .min(2, 'Recipe name must be between 2 to 150 characters.')
     .max(150, 'Recipe name must be between 2 to 150 characters.'),
-  description: z.string().optional(),
+  description: z.string().default(''),
   calories: z.number().int().positive().nullable().optional(),
   servings: z.number().int().positive('Servings must be a more than zero.'),
   cookingTime: z.number().int().min(0, 'Cooking time cannot be negative.'),
@@ -50,7 +53,7 @@ const RecipeSaveSchema = z.object({
   ingredients: z.array(IngredientInputSchema).min(1, 'There must be at least one ingredient.'),
   steps: z.array(StepInputSchema).min(1, 'There must be at least one step.'),
   tags: z.array(TagInputSchema).optional().default([]),
-  author: z.string().optional(),
+  author: z.string().default(''),
   imageUrl: z.string().nullable().optional(),
 })
 
@@ -71,6 +74,26 @@ const RecipeUpdateSchema = z.object({
 
 recipeRouter.get('/', async (c) => {
   const db = createDb(c.env.DATABASE_URL)
+
+  const name = c.req.query('name')
+  const tag = c.req.query('tag')
+  const cuisine = c.req.query('cuisine')
+  const ingredient = c.req.query('ingredient')
+  const tagIdRaw = c.req.query('tagId')
+  const cuisineIdRaw = c.req.query('cuisineId')
+  const ingredientIdRaw = c.req.query('ingredientId')
+
+  const tagId = tagIdRaw ? Number(tagIdRaw) : undefined
+  const cuisineId = cuisineIdRaw ? Number(cuisineIdRaw) : undefined
+  const ingredientId = ingredientIdRaw ? Number(ingredientIdRaw) : undefined
+
+  const hasFilter = name || tag || cuisine || ingredient || tagId || cuisineId || ingredientId
+
+  if (hasFilter) {
+    const data = await searchRecipes(db, { name, tag, cuisine, ingredient, tagId, cuisineId, ingredientId })
+    return c.json(buildSuccess(200, 'Recipes queried', data), 200)
+  }
+
   const page = Number(c.req.query('page') ?? 0)
   const limit = Number(c.req.query('limit') ?? 12)
   const data = await listRecipes(db, page, limit)
@@ -88,15 +111,17 @@ recipeRouter.post('/', async (c) => {
 })
 
 recipeRouter.get('/:id', async (c) => {
-  const db = createDb(c.env.DATABASE_URL)
   const id = Number(c.req.param('id'))
+  if (isNaN(id)) return c.json(buildError(400, 'Invalid recipe id', c.req.path), 400)
+  const db = createDb(c.env.DATABASE_URL)
   const data = await getRecipe(db, id)
   return c.json(buildSuccess(200, 'Recipe retrieved', data), 200)
 })
 
 recipeRouter.patch('/:id', async (c) => {
-  const db = createDb(c.env.DATABASE_URL)
   const id = Number(c.req.param('id'))
+  if (isNaN(id)) return c.json(buildError(400, 'Invalid recipe id', c.req.path), 400)
+  const db = createDb(c.env.DATABASE_URL)
   const body = await c.req.json()
   const input = RecipeUpdateSchema.parse(body)
   const data = await updateRecipe(db, id, input)
@@ -104,8 +129,9 @@ recipeRouter.patch('/:id', async (c) => {
 })
 
 recipeRouter.delete('/:id', async (c) => {
-  const db = createDb(c.env.DATABASE_URL)
   const id = Number(c.req.param('id'))
+  if (isNaN(id)) return c.json(buildError(400, 'Invalid recipe id', c.req.path), 400)
+  const db = createDb(c.env.DATABASE_URL)
   await deleteRecipe(db, id)
   return c.body(null, 204)
 })

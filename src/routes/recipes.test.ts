@@ -99,6 +99,7 @@ function request(
 describe('GET /recipes', () => {
   beforeEach(() => {
     vi.mocked(recipeService.listRecipes).mockResolvedValue(SAMPLE_LIST_ITEMS)
+    vi.mocked(recipeService.searchRecipes).mockResolvedValue(SAMPLE_LIST_ITEMS)
   })
 
   afterEach(() => vi.clearAllMocks())
@@ -117,6 +118,18 @@ describe('GET /recipes', () => {
     const res = await request('/recipes?page=2&limit=5')
     expect(res.status).toBe(200)
     expect(vi.mocked(recipeService.listRecipes)).toHaveBeenCalledWith(expect.anything(), 2, 5)
+  })
+
+  it('routes to searchRecipes when filter params are present', async () => {
+    const res = await request('/recipes?name=pasta&cuisineId=1')
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.message).toBe('Recipes queried')
+    expect(vi.mocked(recipeService.searchRecipes)).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ name: 'pasta', cuisineId: 1 }),
+    )
+    expect(vi.mocked(recipeService.listRecipes)).not.toHaveBeenCalled()
   })
 
   it('returns 401 when API key is missing', async () => {
@@ -241,6 +254,12 @@ describe('GET /recipes/:id', () => {
     const body = await res.json()
     expect(body.message).toBe('Recipe not found with id: 999')
   })
+
+  it('returns 400 for non-numeric id', async () => {
+    const res = await request('/recipes/abc')
+    expect(res.status).toBe(400)
+    expect(vi.mocked(recipeService.getRecipe)).not.toHaveBeenCalled()
+  })
 })
 
 describe('PATCH /recipes/:id', () => {
@@ -273,6 +292,12 @@ describe('PATCH /recipes/:id', () => {
     const res = await request('/recipes/999', { method: 'PATCH', body: { name: 'New Name' } })
     expect(res.status).toBe(404)
   })
+
+  it('returns 400 for non-numeric id', async () => {
+    const res = await request('/recipes/abc', { method: 'PATCH', body: { name: 'x' } })
+    expect(res.status).toBe(400)
+    expect(vi.mocked(recipeService.updateRecipe)).not.toHaveBeenCalled()
+  })
 })
 
 describe('DELETE /recipes/:id', () => {
@@ -304,5 +329,11 @@ describe('DELETE /recipes/:id', () => {
     expect(res.status).toBe(404)
     const body = await res.json()
     expect(body.message).toBe('Recipe not found with id: 999')
+  })
+
+  it('returns 400 for non-numeric id', async () => {
+    const res = await request('/recipes/abc', { method: 'DELETE', apiKey: ADMIN_KEY })
+    expect(res.status).toBe(400)
+    expect(vi.mocked(recipeService.deleteRecipe)).not.toHaveBeenCalled()
   })
 })

@@ -1,6 +1,14 @@
-import { eq } from 'drizzle-orm'
+import { and, eq, ilike, inArray, type SQL } from 'drizzle-orm'
 import { createDb } from '../db/client'
-import { recipes, recipeIngredients, recipeTags, recipeInstructionSteps } from '../db/schema'
+import {
+  cuisines,
+  ingredients,
+  recipes,
+  recipeIngredients,
+  recipeInstructionSteps,
+  recipeTags,
+  tags,
+} from '../db/schema'
 import { NotFoundError } from '../errors'
 import { resolveCuisine } from './cuisineService'
 import { resolveIngredient } from './ingredientService'
@@ -22,7 +30,7 @@ export type StepInput = { stepNumber: number; description: string; tip?: string 
 
 export type RecipeSaveInput = {
   name: string
-  description?: string
+  description: string
   calories?: number | null
   servings: number
   cookingTime: number
@@ -31,7 +39,7 @@ export type RecipeSaveInput = {
   ingredients: IngredientInput[]
   steps: StepInput[]
   tags?: TagInput[]
-  author?: string
+  author: string
   imageUrl?: string | null
 }
 
@@ -48,6 +56,16 @@ export type RecipeUpdateInput = {
   ingredients?: IngredientInput[]
   tags?: TagInput[]
   steps?: StepInput[]
+}
+
+export type RecipeSearchParams = {
+  name?: string
+  tag?: string
+  cuisine?: string
+  ingredient?: string
+  tagId?: number
+  cuisineId?: number
+  ingredientId?: number
 }
 
 export type RecipeListItem = { id: number; name: string; imageUrl: string | null }
@@ -94,14 +112,14 @@ export type RecipeResponse = {
   steps: RecipeStepResponse[]
 }
 
+// Deduplicates by resolved entity ID, matching the Java RecipeServiceImpl behaviour.
 async function resolveUniqueTags(db: Db, tagInputs: TagInput[]) {
-  const seen = new Set<string>()
+  const seen = new Set<number>()
   const resolved = []
   for (const t of tagInputs) {
     const tag = await resolveTag(db, t.id, t.name)
-    const key = tag.name.toLowerCase().trim()
-    if (!seen.has(key)) {
-      seen.add(key)
+    if (!seen.has(tag.id)) {
+      seen.add(tag.id)
       resolved.push(tag)
     }
   }
@@ -173,58 +191,131 @@ export async function listRecipes(db: Db, page: number, limit: number): Promise<
   return rows.map((r) => ({ id: r.id, name: r.name, imageUrl: r.imageUrl ?? null }))
 }
 
+export async function searchRecipes(
+  db: Db,
+  params: RecipeSearchParams,
+): Promise<RecipeListItem[]> {
+  const conditions: SQL[] = []
+
+  if (params.name) {
+    conditions.push(ilike(recipes.name, `%${params.name}%`))
+  }
+  if (params.cuisineId) {
+    conditions.push(eq(recipes.cuisineId, params.cuisineId))
+  }
+  if (params.cuisine) {
+    const cuisineSub = db
+      .select({ id: cuisines.id })
+      .from(cuisines)
+      .where(ilike(cuisines.name, `%${params.cuisine}%`))
+    conditions.push(inArray(recipes.cuisineId, cuisineSub))
+  }
+  if (params.tagId) {
+    const tagSub = db
+      .select({ recipeId: recipeTags.recipeId })
+      .from(recipeTags)
+      .where(eq(recipeTags.tagId, params.tagId))
+    conditions.push(inArray(recipes.id, tagSub))
+  }
+  if (params.tag) {
+    const matchingTagIds = db
+      .select({ id: tags.id })
+      .from(tags)
+      .where(ilike(tags.name, `%${params.tag}%`))
+    const tagSub = db
+      .select({ recipeId: recipeTags.recipeId })
+      .from(recipeTags)
+      .where(inArray(recipeTags.tagId, matchingTagIds))
+    conditions.push(inArray(recipes.id, tagSub))
+  }
+  if (params.ingredientId) {
+    const ingSub = db
+      .select({ recipeId: recipeIngredients.recipeId })
+      .from(recipeIngredients)
+      .where(eq(recipeIngredients.ingredientId, params.ingredientId))
+    conditions.push(inArray(recipes.id, ingSub))
+  }
+  if (params.ingredient) {
+    const matchingIngIds = db
+      .select({ id: ingredients.id })
+      .from(ingredients)
+      .where(ilike(ingredients.name, `%${params.ingredient}%`))
+    const ingSub = db
+      .select({ recipeId: recipeIngredients.recipeId })
+      .from(recipeIngredients)
+      .where(inArray(recipeIngredients.ingredientId, matchingIngIds))
+    conditions.push(inArray(recipes.id, ingSub))
+  }
+
+  const rows = await db
+    .select({ id: recipes.id, name: recipes.name, imageUrl: recipes.imageUrl })
+    .from(recipes)
+    .where(conditions.length ? and(...conditions) : undefined)
+
+  return rows.map((r) => ({ id: r.id, name: r.name, imageUrl: r.imageUrl ?? null }))
+}
+
 export async function getRecipe(db: Db, id: number): Promise<RecipeResponse> {
   return fetchFullRecipe(db, id)
 }
 
 export async function createRecipe(db: Db, input: RecipeSaveInput): Promise<RecipeResponse> {
-  const cuisine = await resolveCuisine(db, input.cuisine.id, input.cuisine.name)
-  const uniqueTags = await resolveUniqueTags(db, input.tags ?? [])
+  const recipeId = await db.transaction(async (tx) => {
+    // tx is structurally compatible with Db; cast required due to Drizzle's type hierarchy
+    const txDb = tx as unknown as Db
 
-  const now = new Date()
-  const [recipe] = await db
-    .insert(recipes)
-    .values({
-      name: input.name,
-      description: input.description ?? '',
-      cuisineId: cuisine.id,
-      author: input.author ?? '',
-      calories: input.calories,
-      servings: input.servings,
-      cookingTime: input.cookingTime,
-      preparationTime: input.preparationTime,
-      imageUrl: input.imageUrl,
-      createdAt: now,
-      updatedAt: now,
-    })
-    .returning()
+    const cuisine = await resolveCuisine(txDb, input.cuisine.id, input.cuisine.name)
+    const uniqueTags = await resolveUniqueTags(txDb, input.tags ?? [])
 
-  for (const ing of input.ingredients) {
-    const ingredient = await resolveIngredient(db, ing.id, ing.name)
-    const unit = await resolveUnit(db, ing.unitId)
-    await db.insert(recipeIngredients).values({
-      recipeId: recipe.id,
-      ingredientId: ingredient.id,
-      unitId: unit.id,
-      quantity: String(ing.quantity),
-      notes: ing.notes,
-    })
-  }
+    const now = new Date()
+    const [recipe] = await tx
+      .insert(recipes)
+      .values({
+        name: input.name,
+        description: input.description,
+        cuisineId: cuisine.id,
+        author: input.author,
+        calories: input.calories,
+        servings: input.servings,
+        cookingTime: input.cookingTime,
+        preparationTime: input.preparationTime,
+        imageUrl: input.imageUrl,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .returning()
 
-  for (const tag of uniqueTags) {
-    await db.insert(recipeTags).values({ recipeId: recipe.id, tagId: tag.id })
-  }
+    for (const ing of input.ingredients) {
+      const [ingredient, unit] = await Promise.all([
+        resolveIngredient(txDb, ing.id, ing.name),
+        resolveUnit(txDb, ing.unitId),
+      ])
+      await tx.insert(recipeIngredients).values({
+        recipeId: recipe.id,
+        ingredientId: ingredient.id,
+        unitId: unit.id,
+        quantity: String(ing.quantity),
+        notes: ing.notes,
+      })
+    }
 
-  for (const step of input.steps) {
-    await db.insert(recipeInstructionSteps).values({
-      recipeId: recipe.id,
-      stepNumber: step.stepNumber,
-      description: step.description,
-      tip: step.tip,
-    })
-  }
+    for (const tag of uniqueTags) {
+      await tx.insert(recipeTags).values({ recipeId: recipe.id, tagId: tag.id })
+    }
 
-  return fetchFullRecipe(db, recipe.id)
+    for (const step of input.steps) {
+      await tx.insert(recipeInstructionSteps).values({
+        recipeId: recipe.id,
+        stepNumber: step.stepNumber,
+        description: step.description,
+        tip: step.tip,
+      })
+    }
+
+    return recipe.id
+  })
+
+  return fetchFullRecipe(db, recipeId)
 }
 
 export async function updateRecipe(
@@ -232,64 +323,71 @@ export async function updateRecipe(
   id: number,
   input: RecipeUpdateInput,
 ): Promise<RecipeResponse> {
-  const existing = await db.query.recipes.findFirst({ where: eq(recipes.id, id) })
-  if (!existing) throw new NotFoundError(`Recipe not found with id: ${id}`)
+  await db.transaction(async (tx) => {
+    // tx is structurally compatible with Db; cast required due to Drizzle's type hierarchy
+    const txDb = tx as unknown as Db
 
-  // updatedAt is always set explicitly on PATCH, as required by the spec.
-  // Note: unlike the Java source (which ignores null fields), null here nullifies
-  // nullable columns (calories, imageUrl). Non-nullable columns cannot be set to null.
-  const patch: Record<string, unknown> = { updatedAt: new Date() }
+    const existing = await tx.query.recipes.findFirst({ where: eq(recipes.id, id) })
+    if (!existing) throw new NotFoundError(`Recipe not found with id: ${id}`)
 
-  if (input.name !== undefined) patch.name = input.name
-  if (input.description !== undefined) patch.description = input.description
-  if (input.author !== undefined) patch.author = input.author
-  if (input.calories !== undefined) patch.calories = input.calories
-  if (input.servings !== undefined) patch.servings = input.servings
-  if (input.cookingTime !== undefined) patch.cookingTime = input.cookingTime
-  if (input.preparationTime !== undefined) patch.preparationTime = input.preparationTime
-  if (input.imageUrl !== undefined) patch.imageUrl = input.imageUrl
+    // updatedAt is always set explicitly on PATCH, as required by the spec.
+    // Note: unlike the Java source (which ignores null fields), null here nullifies
+    // nullable columns (calories, imageUrl). Non-nullable columns cannot be set to null.
+    const patch: Record<string, unknown> = { updatedAt: new Date() }
 
-  if (input.cuisine !== undefined) {
-    const cuisine = await resolveCuisine(db, input.cuisine.id, input.cuisine.name)
-    patch.cuisineId = cuisine.id
-  }
+    if (input.name !== undefined) patch.name = input.name
+    if (input.description !== undefined) patch.description = input.description
+    if (input.author !== undefined) patch.author = input.author
+    if (input.calories !== undefined) patch.calories = input.calories
+    if (input.servings !== undefined) patch.servings = input.servings
+    if (input.cookingTime !== undefined) patch.cookingTime = input.cookingTime
+    if (input.preparationTime !== undefined) patch.preparationTime = input.preparationTime
+    if (input.imageUrl !== undefined) patch.imageUrl = input.imageUrl
 
-  await db.update(recipes).set(patch).where(eq(recipes.id, id))
-
-  if (input.ingredients !== undefined) {
-    await db.delete(recipeIngredients).where(eq(recipeIngredients.recipeId, id))
-    for (const ing of input.ingredients) {
-      const ingredient = await resolveIngredient(db, ing.id, ing.name)
-      const unit = await resolveUnit(db, ing.unitId)
-      await db.insert(recipeIngredients).values({
-        recipeId: id,
-        ingredientId: ingredient.id,
-        unitId: unit.id,
-        quantity: String(ing.quantity),
-        notes: ing.notes,
-      })
+    if (input.cuisine !== undefined) {
+      const cuisine = await resolveCuisine(txDb, input.cuisine.id, input.cuisine.name)
+      patch.cuisineId = cuisine.id
     }
-  }
 
-  if (input.tags !== undefined) {
-    await db.delete(recipeTags).where(eq(recipeTags.recipeId, id))
-    const uniqueTags = await resolveUniqueTags(db, input.tags)
-    for (const tag of uniqueTags) {
-      await db.insert(recipeTags).values({ recipeId: id, tagId: tag.id })
-    }
-  }
+    await tx.update(recipes).set(patch).where(eq(recipes.id, id))
 
-  if (input.steps !== undefined) {
-    await db.delete(recipeInstructionSteps).where(eq(recipeInstructionSteps.recipeId, id))
-    for (const step of input.steps) {
-      await db.insert(recipeInstructionSteps).values({
-        recipeId: id,
-        stepNumber: step.stepNumber,
-        description: step.description,
-        tip: step.tip,
-      })
+    if (input.ingredients !== undefined) {
+      await tx.delete(recipeIngredients).where(eq(recipeIngredients.recipeId, id))
+      for (const ing of input.ingredients) {
+        const [ingredient, unit] = await Promise.all([
+          resolveIngredient(txDb, ing.id, ing.name),
+          resolveUnit(txDb, ing.unitId),
+        ])
+        await tx.insert(recipeIngredients).values({
+          recipeId: id,
+          ingredientId: ingredient.id,
+          unitId: unit.id,
+          quantity: String(ing.quantity),
+          notes: ing.notes,
+        })
+      }
     }
-  }
+
+    if (input.tags !== undefined) {
+      await tx.delete(recipeTags).where(eq(recipeTags.recipeId, id))
+      const uniqueTags = await resolveUniqueTags(txDb, input.tags)
+      for (const tag of uniqueTags) {
+        await tx.insert(recipeTags).values({ recipeId: id, tagId: tag.id })
+      }
+    }
+
+    if (input.steps !== undefined) {
+      await tx.delete(recipeInstructionSteps).where(eq(recipeInstructionSteps.recipeId, id))
+      for (const step of input.steps) {
+        await tx.insert(recipeInstructionSteps).values({
+          recipeId: id,
+          stepNumber: step.stepNumber,
+          description: step.description,
+          tip: step.tip,
+        })
+      }
+    }
+  })
 
   return fetchFullRecipe(db, id)
 }
