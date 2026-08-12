@@ -120,6 +120,18 @@ describe('GET /recipes', () => {
     expect(vi.mocked(recipeService.listRecipes)).toHaveBeenCalledWith(expect.anything(), 2, 5)
   })
 
+  it('caps limit at 100', async () => {
+    const res = await request('/recipes?limit=999')
+    expect(res.status).toBe(200)
+    expect(vi.mocked(recipeService.listRecipes)).toHaveBeenCalledWith(expect.anything(), 0, 100)
+  })
+
+  it('returns 400 for non-numeric page or limit', async () => {
+    const res = await request('/recipes?page=abc')
+    expect(res.status).toBe(400)
+    expect(vi.mocked(recipeService.listRecipes)).not.toHaveBeenCalled()
+  })
+
   it('routes to searchRecipes when filter params are present', async () => {
     const res = await request('/recipes?name=pasta&cuisineId=1')
     expect(res.status).toBe(200)
@@ -216,6 +228,21 @@ describe('POST /recipes', () => {
     expect(res.status).toBe(400)
     const body = await res.json()
     expect(body.message).toBe('There must be at least one step.')
+  })
+
+  it('accepts calories of zero', async () => {
+    const res = await request('/recipes', { method: 'POST', body: { ...SAVE_BODY, calories: 0 } })
+    expect(res.status).toBe(201)
+  })
+
+  it('returns 400 when cuisine has neither id nor name', async () => {
+    const res = await request('/recipes', {
+      method: 'POST',
+      body: { ...SAVE_BODY, cuisine: {} },
+    })
+    expect(res.status).toBe(400)
+    const body = await res.json()
+    expect(body.message).toBe('Cuisine request must have either an ID or a name.')
   })
 
   it('propagates 404 from service when unit is not found', async () => {

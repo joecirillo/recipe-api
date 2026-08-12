@@ -13,10 +13,14 @@ import {
 
 export const recipeRouter = new Hono<{ Bindings: CloudflareBindings }>()
 
-const CuisineInputSchema = z.object({
-  id: z.number().int().positive().optional(),
-  name: z.string().optional(),
-})
+const CuisineInputSchema = z
+  .object({
+    id: z.number().int().positive().optional(),
+    name: z.string().optional(),
+  })
+  .refine((c) => c.id != null || (c.name?.trim().length ?? 0) > 0, {
+    message: 'Cuisine request must have either an ID or a name.',
+  })
 
 const IngredientInputSchema = z.object({
   id: z.number().int().positive().optional(),
@@ -26,10 +30,14 @@ const IngredientInputSchema = z.object({
   notes: z.string().nullish(),
 })
 
-const TagInputSchema = z.object({
-  id: z.number().int().positive().optional(),
-  name: z.string().optional(),
-})
+const TagInputSchema = z
+  .object({
+    id: z.number().int().positive().optional(),
+    name: z.string().optional(),
+  })
+  .refine((t) => t.id != null || (t.name?.trim().length ?? 0) > 0, {
+    message: 'Tag request must have either an ID or a name.',
+  })
 
 const StepInputSchema = z.object({
   stepNumber: z.number().int().positive(),
@@ -45,7 +53,7 @@ const RecipeSaveSchema = z.object({
     .min(2, 'Recipe name must be between 2 to 150 characters.')
     .max(150, 'Recipe name must be between 2 to 150 characters.'),
   description: z.string().default(''),
-  calories: z.number().int().positive().nullable().optional(),
+  calories: z.number().int().min(0).nullable().optional(),
   servings: z.number().int().positive('Servings must be a more than zero.'),
   cookingTime: z.number().int().min(0, 'Cooking time cannot be negative.'),
   preparationTime: z.number().int().positive('Preparation time cannot be zero minutes.'),
@@ -60,16 +68,16 @@ const RecipeSaveSchema = z.object({
 const RecipeUpdateSchema = z.object({
   name: z.string().min(2).max(150).optional(),
   description: z.string().optional(),
-  calories: z.number().int().positive().nullable().optional(),
+  calories: z.number().int().min(0).nullable().optional(),
   servings: z.number().int().positive().optional(),
   cookingTime: z.number().int().min(0).optional(),
   preparationTime: z.number().int().positive().optional(),
   cuisine: CuisineInputSchema.optional(),
   author: z.string().optional(),
   imageUrl: z.string().nullable().optional(),
-  ingredients: z.array(IngredientInputSchema).optional(),
+  ingredients: z.array(IngredientInputSchema).min(1).optional(),
   tags: z.array(TagInputSchema).optional(),
-  steps: z.array(StepInputSchema).optional(),
+  steps: z.array(StepInputSchema).min(1).optional(),
 })
 
 recipeRouter.get('/', async (c) => {
@@ -96,7 +104,10 @@ recipeRouter.get('/', async (c) => {
 
   const page = Number(c.req.query('page') ?? 0)
   const limit = Number(c.req.query('limit') ?? 12)
-  const data = await listRecipes(db, page, limit)
+  if (isNaN(page) || isNaN(limit)) {
+    return c.json(buildError(400, 'Invalid page or limit', c.req.path), 400)
+  }
+  const data = await listRecipes(db, page, Math.min(limit, 100))
   return c.json(buildSuccess(200, 'Recipes retrieved', data), 200)
 })
 
