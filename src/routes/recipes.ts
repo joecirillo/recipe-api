@@ -91,11 +91,30 @@ recipeRouter.get('/', async (c) => {
   const cuisineIdRaw = c.req.query('cuisineId')
   const ingredientIdRaw = c.req.query('ingredientId')
 
-  const tagId = tagIdRaw ? Number(tagIdRaw) : undefined
-  const cuisineId = cuisineIdRaw ? Number(cuisineIdRaw) : undefined
-  const ingredientId = ingredientIdRaw ? Number(ingredientIdRaw) : undefined
+  if (tagIdRaw !== undefined && isNaN(Number(tagIdRaw))) {
+    return c.json(buildError(400, 'Invalid tagId', c.req.path), 400)
+  }
+  if (cuisineIdRaw !== undefined && isNaN(Number(cuisineIdRaw))) {
+    return c.json(buildError(400, 'Invalid cuisineId', c.req.path), 400)
+  }
+  if (ingredientIdRaw !== undefined && isNaN(Number(ingredientIdRaw))) {
+    return c.json(buildError(400, 'Invalid ingredientId', c.req.path), 400)
+  }
 
-  const hasFilter = name || tag || cuisine || ingredient || tagId || cuisineId || ingredientId
+  const tagId = tagIdRaw !== undefined ? Number(tagIdRaw) : undefined
+  const cuisineId = cuisineIdRaw !== undefined ? Number(cuisineIdRaw) : undefined
+  const ingredientId = ingredientIdRaw !== undefined ? Number(ingredientIdRaw) : undefined
+
+  // Use !== undefined rather than truthiness: id=0 is valid and falsy,
+  // blank text params are handled by searchRecipes itself via .trim().
+  const hasFilter =
+    name !== undefined ||
+    tag !== undefined ||
+    cuisine !== undefined ||
+    ingredient !== undefined ||
+    tagId !== undefined ||
+    cuisineId !== undefined ||
+    ingredientId !== undefined
 
   if (hasFilter) {
     const data = await searchRecipes(db, { name, tag, cuisine, ingredient, tagId, cuisineId, ingredientId })

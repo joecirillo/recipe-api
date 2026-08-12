@@ -112,7 +112,9 @@ export type RecipeResponse = {
   steps: RecipeStepResponse[]
 }
 
-// Deduplicates by resolved entity ID, matching the Java RecipeServiceImpl behaviour.
+// Deduplicates by resolved entity ID. The Java source keys on lowercased name, but that
+// is equivalent here: resolveTag uses ilike (case-insensitive) lookup, so "Quick" and
+// "quick" resolve to the same row and therefore the same ID. Dedup by ID is sufficient.
 async function resolveUniqueTags(db: Db, tagInputs: TagInput[]) {
   const seen = new Set<number>()
   const resolved = []
