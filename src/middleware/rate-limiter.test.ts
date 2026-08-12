@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { rateLimiterMiddleware } from './rateLimiter'
+import { rateLimiterMiddleware } from './rate-limiter'
 
 type TestBindings = {
   USER_API_KEY: string
