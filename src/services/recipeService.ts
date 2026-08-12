@@ -197,13 +197,14 @@ export async function searchRecipes(
 ): Promise<RecipeListItem[]> {
   const conditions: SQL[] = []
 
-  if (params.name) {
+  // Mirror RecipeSpecification.buildFrom: trim each text param and skip if blank.
+  if (params.name?.trim()) {
     conditions.push(ilike(recipes.name, `%${params.name}%`))
   }
   if (params.cuisineId) {
     conditions.push(eq(recipes.cuisineId, params.cuisineId))
   }
-  if (params.cuisine) {
+  if (params.cuisine?.trim()) {
     const cuisineSub = db
       .select({ id: cuisines.id })
       .from(cuisines)
@@ -217,7 +218,7 @@ export async function searchRecipes(
       .where(eq(recipeTags.tagId, params.tagId))
     conditions.push(inArray(recipes.id, tagSub))
   }
-  if (params.tag) {
+  if (params.tag?.trim()) {
     const matchingTagIds = db
       .select({ id: tags.id })
       .from(tags)
@@ -235,7 +236,7 @@ export async function searchRecipes(
       .where(eq(recipeIngredients.ingredientId, params.ingredientId))
     conditions.push(inArray(recipes.id, ingSub))
   }
-  if (params.ingredient) {
+  if (params.ingredient?.trim()) {
     const matchingIngIds = db
       .select({ id: ingredients.id })
       .from(ingredients)
@@ -393,7 +394,8 @@ export async function updateRecipe(
 }
 
 export async function deleteRecipe(db: Db, id: number): Promise<void> {
-  const existing = await db.query.recipes.findFirst({ where: eq(recipes.id, id) })
-  if (!existing) throw new NotFoundError(`Recipe not found with id: ${id}`)
-  await db.delete(recipes).where(eq(recipes.id, id))
+  // Single atomic statement: .returning() gives us a row if the delete hit something,
+  // empty array if not. Avoids the findFirst + delete TOCTOU race.
+  const [deleted] = await db.delete(recipes).where(eq(recipes.id, id)).returning({ id: recipes.id })
+  if (!deleted) throw new NotFoundError(`Recipe not found with id: ${id}`)
 }
