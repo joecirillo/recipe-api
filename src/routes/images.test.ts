@@ -104,7 +104,7 @@ describe('POST /recipes/images', () => {
     expect(vi.mocked(imageService.uploadImage)).not.toHaveBeenCalled()
   })
 
-  it('returns 400 when service rejects empty file', async () => {
+  it('propagates BadRequestError from service as 400 (error handler integration)', async () => {
     vi.mocked(imageService.uploadImage).mockRejectedValue(
       new BadRequestError('File must not be empty'),
     )
