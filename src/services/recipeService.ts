@@ -10,10 +10,10 @@ import {
   tags,
 } from '../db/schema'
 import { NotFoundError } from '../errors'
-import { resolveCuisine } from './cuisineService'
-import { resolveIngredient } from './ingredientService'
-import { resolveTag } from './tagService'
-import { resolveUnit } from './unitService'
+import { resolveCuisine } from './cuisine-service'
+import { resolveIngredient } from './ingredient-service'
+import { resolveTag } from './tag-service'
+import { resolveUnit } from './unit-service'
 
 type Db = ReturnType<typeof createDb>
 

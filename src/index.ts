@@ -6,6 +6,7 @@ import { cuisineRouter } from './routes/cuisines'
 import { ingredientRouter } from './routes/ingredients'
 import { tagRouter } from './routes/tags'
 import { unitRouter } from './routes/units'
+import { imageRouter } from './routes/images'
 import { recipeRouter } from './routes/recipes'
 
 const app = new Hono<{ Bindings: CloudflareBindings }>()
@@ -21,6 +22,7 @@ app.route('/cuisines', cuisineRouter)
 app.route('/ingredients', ingredientRouter)
 app.route('/tags', tagRouter)
 app.route('/units', unitRouter)
+app.route('/recipes/images', imageRouter)
 app.route('/recipes', recipeRouter)
 
 export default app

@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { authMiddleware } from '../middleware/auth'
-import { errorHandler } from '../middleware/errorHandler'
+import { errorHandler } from '../middleware/error-handler'
 import { NotFoundError } from '../errors'
 import * as recipeService from '../services/recipeService'
 import { recipeRouter } from './recipes'
