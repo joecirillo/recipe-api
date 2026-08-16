@@ -2,8 +2,6 @@ import { Hono } from 'hono'
 import { buildError, buildSuccess } from '../lib/response'
 import { deleteImage, uploadImage } from '../services/image-service'
 
-const MAX_FILE_SIZE = 25 * 1024 * 1024 // 25 MB
-
 export const imageRouter = new Hono<{ Bindings: CloudflareBindings }>()
 
 imageRouter.post('/', async (c) => {
@@ -12,10 +10,6 @@ imageRouter.post('/', async (c) => {
 
   if (!(file instanceof File)) {
     return c.json(buildError(400, 'File must not be empty', c.req.path), 400)
-  }
-
-  if (file.size > MAX_FILE_SIZE) {
-    return c.json(buildError(400, 'File exceeds 25MB limit', c.req.path), 400)
   }
 
   const url = await uploadImage(c.env.IMAGE_BUCKET, c.env.R2_PUBLIC_URL, file)

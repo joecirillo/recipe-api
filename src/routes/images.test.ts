@@ -95,13 +95,16 @@ describe('POST /recipes/images', () => {
     expect(vi.mocked(imageService.uploadImage)).not.toHaveBeenCalled()
   })
 
-  it('returns 400 when file exceeds 25MB', async () => {
-    const res = await uploadRequest(makeFormData(makeFile('', 'big.jpg', 'image/jpeg', 25 * 1024 * 1024 + 1)), USER_KEY)
+  it('returns 400 when service rejects file exceeding 25MB', async () => {
+    vi.mocked(imageService.uploadImage).mockRejectedValue(
+      new BadRequestError('File exceeds 25MB limit'),
+    )
+
+    const res = await uploadRequest(makeFormData(makeFile()), USER_KEY)
     const body = await res.json()
 
     expect(res.status).toBe(400)
     expect(body.message).toBe('File exceeds 25MB limit')
-    expect(vi.mocked(imageService.uploadImage)).not.toHaveBeenCalled()
   })
 
   it('propagates BadRequestError from service as 400 (error handler integration)', async () => {

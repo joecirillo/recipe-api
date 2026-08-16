@@ -1,5 +1,7 @@
 import { BadRequestError } from '../errors'
 
+const MAX_FILE_SIZE = 25 * 1024 * 1024 // 25 MB
+
 const ALLOWED_TYPES = new Set([
   'image/jpeg',
   'image/png',
@@ -25,6 +27,10 @@ export async function uploadImage(
 ): Promise<string> {
   if (file.size === 0) {
     throw new BadRequestError('File must not be empty')
+  }
+
+  if (file.size > MAX_FILE_SIZE) {
+    throw new BadRequestError('File exceeds 25MB limit')
   }
 
   const contentType = file.type
