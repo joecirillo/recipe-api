@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
-import { buildError, buildSuccess } from '../lib/response'
+import { BadRequestError } from '../errors'
+import { buildSuccess } from '../lib/response'
 import { deleteImage, uploadImage } from '../services/image-service'
 
 export const imageRouter = new Hono<{ Bindings: CloudflareBindings }>()
@@ -9,7 +10,7 @@ imageRouter.post('/', async (c) => {
   const file = formData.get('file')
 
   if (!(file instanceof File)) {
-    return c.json(buildError(400, 'File must not be empty', c.req.path), 400)
+    throw new BadRequestError('File must not be empty')
   }
 
   const url = await uploadImage(c.env.IMAGE_BUCKET, c.env.R2_PUBLIC_URL, file)

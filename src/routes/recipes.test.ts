@@ -120,10 +120,10 @@ describe('GET /recipes', () => {
     expect(vi.mocked(recipeService.listRecipes)).toHaveBeenCalledWith(expect.anything(), 2, 5)
   })
 
-  it('caps limit at 100', async () => {
+  it('passes limit to service uncapped', async () => {
     const res = await request('/recipes?limit=999')
     expect(res.status).toBe(200)
-    expect(vi.mocked(recipeService.listRecipes)).toHaveBeenCalledWith(expect.anything(), 0, 100)
+    expect(vi.mocked(recipeService.listRecipes)).toHaveBeenCalledWith(expect.anything(), 0, 999)
   })
 
   it('returns 400 for non-numeric page or limit', async () => {

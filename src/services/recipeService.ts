@@ -185,12 +185,13 @@ async function fetchFullRecipe(db: Db, id: number): Promise<RecipeResponse> {
 }
 
 export async function listRecipes(db: Db, page: number, limit: number): Promise<RecipeListItem[]> {
+  const safeLimit = Math.min(limit, 100)
   const rows = await db
     .select({ id: recipes.id, name: recipes.name, imageUrl: recipes.imageUrl })
     .from(recipes)
     .orderBy(asc(recipes.id))
-    .limit(limit)
-    .offset(page * limit)
+    .limit(safeLimit)
+    .offset(page * safeLimit)
   return rows.map((r) => ({ id: r.id, name: r.name, imageUrl: r.imageUrl ?? null }))
 }
 
