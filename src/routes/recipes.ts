@@ -1,7 +1,8 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { createDb } from '../db/client'
-import { buildError, buildSuccess } from '../lib/response'
+import { buildSuccess } from '../lib/response'
+import { BadRequestError } from '../errors'
 import {
   createRecipe,
   deleteRecipe,
@@ -100,13 +101,13 @@ recipeRouter.get('/', async (c) => {
   const ingredientIdRaw = c.req.query('ingredientId')
 
   if (tagIdRaw !== undefined && isNaN(Number(tagIdRaw))) {
-    return c.json(buildError(400, 'Invalid tagId', c.req.path), 400)
+    throw new BadRequestError('Invalid tagId')
   }
   if (cuisineIdRaw !== undefined && isNaN(Number(cuisineIdRaw))) {
-    return c.json(buildError(400, 'Invalid cuisineId', c.req.path), 400)
+    throw new BadRequestError('Invalid cuisineId')
   }
   if (ingredientIdRaw !== undefined && isNaN(Number(ingredientIdRaw))) {
-    return c.json(buildError(400, 'Invalid ingredientId', c.req.path), 400)
+    throw new BadRequestError('Invalid ingredientId')
   }
 
   const tagId = tagIdRaw !== undefined ? Number(tagIdRaw) : undefined
@@ -132,9 +133,9 @@ recipeRouter.get('/', async (c) => {
   const page = Number(c.req.query('page') ?? 0)
   const limit = Number(c.req.query('limit') ?? 12)
   if (isNaN(page) || isNaN(limit)) {
-    return c.json(buildError(400, 'Invalid page or limit', c.req.path), 400)
+    throw new BadRequestError('Invalid page or limit')
   }
-  const data = await listRecipes(db, page, Math.min(limit, 100))
+  const data = await listRecipes(db, page, limit)
   return c.json(buildSuccess(200, 'Recipes retrieved', data), 200)
 })
 
@@ -150,7 +151,7 @@ recipeRouter.post('/', async (c) => {
 
 recipeRouter.get('/:id', async (c) => {
   const id = Number(c.req.param('id'))
-  if (isNaN(id)) return c.json(buildError(400, 'Invalid recipe id', c.req.path), 400)
+  if (isNaN(id)) throw new BadRequestError('Invalid recipe id')
   const db = createDb(c.env.DATABASE_URL)
   const data = await getRecipe(db, id)
   return c.json(buildSuccess(200, 'Recipe retrieved', data), 200)
@@ -158,7 +159,7 @@ recipeRouter.get('/:id', async (c) => {
 
 recipeRouter.patch('/:id', async (c) => {
   const id = Number(c.req.param('id'))
-  if (isNaN(id)) return c.json(buildError(400, 'Invalid recipe id', c.req.path), 400)
+  if (isNaN(id)) throw new BadRequestError('Invalid recipe id')
   const db = createDb(c.env.DATABASE_URL)
   const body = await c.req.json()
   const input = RecipeUpdateSchema.parse(body)
@@ -168,7 +169,7 @@ recipeRouter.patch('/:id', async (c) => {
 
 recipeRouter.delete('/:id', async (c) => {
   const id = Number(c.req.param('id'))
-  if (isNaN(id)) return c.json(buildError(400, 'Invalid recipe id', c.req.path), 400)
+  if (isNaN(id)) throw new BadRequestError('Invalid recipe id')
   const db = createDb(c.env.DATABASE_URL)
   await deleteRecipe(db, id)
   return c.body(null, 204)
