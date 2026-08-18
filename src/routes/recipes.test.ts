@@ -107,7 +107,7 @@ describe('GET /recipes', () => {
   it('returns 200 with paginated slim list', async () => {
     const res = await request('/recipes')
     expect(res.status).toBe(200)
-    const body = await res.json()
+    const body = await res.json() as Record<string, any>
     expect(body.status).toBe(200)
     expect(body.message).toBe('Recipes retrieved')
     expect(body.data).toEqual(SAMPLE_LIST_ITEMS)
@@ -153,7 +153,7 @@ describe('GET /recipes', () => {
   it('routes to searchRecipes when filter params are present', async () => {
     const res = await request('/recipes?name=pasta&cuisineId=1')
     expect(res.status).toBe(200)
-    const body = await res.json()
+    const body = await res.json() as Record<string, any>
     expect(body.message).toBe('Recipes queried')
     expect(vi.mocked(recipeService.searchRecipes)).toHaveBeenCalledWith(
       expect.anything(),
@@ -165,6 +165,121 @@ describe('GET /recipes', () => {
   it('returns 401 when API key is missing', async () => {
     const res = await request('/recipes', { apiKey: null })
     expect(res.status).toBe(401)
+  })
+
+  describe('search mode', () => {
+    beforeEach(() => {
+      vi.mocked(recipeService.searchRecipes).mockResolvedValue(SAMPLE_LIST_ITEMS)
+    })
+
+    it('filters by name', async () => {
+      const res = await request('/recipes?name=pasta')
+      expect(res.status).toBe(200)
+      const body = await res.json() as Record<string, any>
+      expect(body.message).toBe('Recipes queried')
+      expect(vi.mocked(recipeService.searchRecipes)).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ name: 'pasta' }),
+      )
+      expect(vi.mocked(recipeService.listRecipes)).not.toHaveBeenCalled()
+    })
+
+    it('filters by tag (text)', async () => {
+      const res = await request('/recipes?tag=quick')
+      expect(res.status).toBe(200)
+      expect(vi.mocked(recipeService.searchRecipes)).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ tag: 'quick' }),
+      )
+    })
+
+    it('filters by cuisine (text)', async () => {
+      const res = await request('/recipes?cuisine=italian')
+      expect(res.status).toBe(200)
+      expect(vi.mocked(recipeService.searchRecipes)).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ cuisine: 'italian' }),
+      )
+    })
+
+    it('filters by ingredient (text)', async () => {
+      const res = await request('/recipes?ingredient=garlic')
+      expect(res.status).toBe(200)
+      expect(vi.mocked(recipeService.searchRecipes)).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ ingredient: 'garlic' }),
+      )
+    })
+
+    it('filters by cuisineId', async () => {
+      const res = await request('/recipes?cuisineId=3')
+      expect(res.status).toBe(200)
+      expect(vi.mocked(recipeService.searchRecipes)).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ cuisineId: 3 }),
+      )
+    })
+
+    it('filters by tagId', async () => {
+      const res = await request('/recipes?tagId=7')
+      expect(res.status).toBe(200)
+      expect(vi.mocked(recipeService.searchRecipes)).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ tagId: 7 }),
+      )
+    })
+
+    it('filters by ingredientId', async () => {
+      const res = await request('/recipes?ingredientId=42')
+      expect(res.status).toBe(200)
+      expect(vi.mocked(recipeService.searchRecipes)).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ ingredientId: 42 }),
+      )
+    })
+
+    it('ANDs multiple filter params together', async () => {
+      const res = await request('/recipes?name=pasta&cuisineId=1&tag=quick')
+      expect(res.status).toBe(200)
+      expect(vi.mocked(recipeService.searchRecipes)).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ name: 'pasta', cuisineId: 1, tag: 'quick' }),
+      )
+    })
+
+    it('blank ?name= still triggers search mode (service is responsible for ignoring it)', async () => {
+      const res = await request('/recipes?name=')
+      expect(res.status).toBe(200)
+      const body = await res.json() as Record<string, any>
+      expect(body.message).toBe('Recipes queried')
+      expect(vi.mocked(recipeService.searchRecipes)).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ name: '' }),
+      )
+      expect(vi.mocked(recipeService.listRecipes)).not.toHaveBeenCalled()
+    })
+
+    it('whitespace-only ?name= still triggers search mode', async () => {
+      const res = await request('/recipes?name=%20%20%20')
+      expect(res.status).toBe(200)
+      const body = await res.json() as Record<string, any>
+      expect(body.message).toBe('Recipes queried')
+      expect(vi.mocked(recipeService.searchRecipes)).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ name: '   ' }),
+      )
+      expect(vi.mocked(recipeService.listRecipes)).not.toHaveBeenCalled()
+    })
+
+    it('returns slim { id, name, imageUrl } DTO shape', async () => {
+      const res = await request('/recipes?name=pasta')
+      const body = await res.json() as Record<string, any>
+      expect(body.data).toEqual(SAMPLE_LIST_ITEMS)
+      expect(body.data[0]).toMatchObject({ id: expect.any(Number), name: expect.any(String) })
+      expect(body.data[0]).toHaveProperty('imageUrl')
+      expect(body.data[0]).not.toHaveProperty('description')
+      expect(body.data[0]).not.toHaveProperty('ingredients')
+    })
   })
 })
 
@@ -179,7 +294,7 @@ describe('POST /recipes', () => {
     const res = await request('/recipes', { method: 'POST', body: SAVE_BODY })
     expect(res.status).toBe(201)
     expect(res.headers.get('Location')).toBe('/recipes/1')
-    const body = await res.json()
+    const body = await res.json() as Record<string, any>
     expect(body.status).toBe(201)
     expect(body.message).toBe('Recipe saved')
     expect(body.data.id).toBe(1)
@@ -194,7 +309,7 @@ describe('POST /recipes', () => {
       body: { ...SAVE_BODY, name: 'A' },
     })
     expect(res.status).toBe(400)
-    const body = await res.json()
+    const body = await res.json() as Record<string, any>
     expect(body.message).toBe('Recipe name must be between 2 to 150 characters.')
   })
 
@@ -204,7 +319,7 @@ describe('POST /recipes', () => {
       body: { ...SAVE_BODY, servings: 0 },
     })
     expect(res.status).toBe(400)
-    const body = await res.json()
+    const body = await res.json() as Record<string, any>
     expect(body.message).toBe('Servings must be a more than zero.')
   })
 
@@ -214,7 +329,7 @@ describe('POST /recipes', () => {
       body: { ...SAVE_BODY, cookingTime: -1 },
     })
     expect(res.status).toBe(400)
-    const body = await res.json()
+    const body = await res.json() as Record<string, any>
     expect(body.message).toBe('Cooking time cannot be negative.')
   })
 
@@ -224,7 +339,7 @@ describe('POST /recipes', () => {
       body: { ...SAVE_BODY, preparationTime: 0 },
     })
     expect(res.status).toBe(400)
-    const body = await res.json()
+    const body = await res.json() as Record<string, any>
     expect(body.message).toBe('Preparation time cannot be zero minutes.')
   })
 
@@ -234,7 +349,7 @@ describe('POST /recipes', () => {
       body: { ...SAVE_BODY, ingredients: [] },
     })
     expect(res.status).toBe(400)
-    const body = await res.json()
+    const body = await res.json() as Record<string, any>
     expect(body.message).toBe('There must be at least one ingredient.')
   })
 
@@ -244,7 +359,7 @@ describe('POST /recipes', () => {
       body: { ...SAVE_BODY, steps: [] },
     })
     expect(res.status).toBe(400)
-    const body = await res.json()
+    const body = await res.json() as Record<string, any>
     expect(body.message).toBe('There must be at least one step.')
   })
 
@@ -259,7 +374,7 @@ describe('POST /recipes', () => {
       body: { ...SAVE_BODY, cuisine: {} },
     })
     expect(res.status).toBe(400)
-    const body = await res.json()
+    const body = await res.json() as Record<string, any>
     expect(body.message).toBe('Cuisine request must have either an ID or a name.')
   })
 
@@ -269,7 +384,7 @@ describe('POST /recipes', () => {
     )
     const res = await request('/recipes', { method: 'POST', body: SAVE_BODY })
     expect(res.status).toBe(404)
-    const body = await res.json()
+    const body = await res.json() as Record<string, any>
     expect(body.message).toBe('Unit ID not found: 999')
   })
 })
@@ -281,7 +396,7 @@ describe('GET /recipes/:id', () => {
     vi.mocked(recipeService.getRecipe).mockResolvedValue(FULL_RECIPE)
     const res = await request('/recipes/1')
     expect(res.status).toBe(200)
-    const body = await res.json()
+    const body = await res.json() as Record<string, any>
     expect(body.status).toBe(200)
     expect(body.message).toBe('Recipe retrieved')
     expect(body.data.id).toBe(1)
@@ -296,7 +411,7 @@ describe('GET /recipes/:id', () => {
     )
     const res = await request('/recipes/999')
     expect(res.status).toBe(404)
-    const body = await res.json()
+    const body = await res.json() as Record<string, any>
     expect(body.message).toBe('Recipe not found with id: 999')
   })
 
@@ -315,7 +430,7 @@ describe('PATCH /recipes/:id', () => {
     vi.mocked(recipeService.updateRecipe).mockResolvedValue(updated)
     const res = await request('/recipes/1', { method: 'PATCH', body: { name: 'Updated Pasta' } })
     expect(res.status).toBe(200)
-    const body = await res.json()
+    const body = await res.json() as Record<string, any>
     expect(body.message).toBe('Recipe updated')
     expect(body.data.name).toBe('Updated Pasta')
   })
@@ -384,7 +499,7 @@ describe('DELETE /recipes/:id', () => {
     )
     const res = await request('/recipes/999', { method: 'DELETE', apiKey: ADMIN_KEY })
     expect(res.status).toBe(404)
-    const body = await res.json()
+    const body = await res.json() as Record<string, any>
     expect(body.message).toBe('Recipe not found with id: 999')
   })
 
