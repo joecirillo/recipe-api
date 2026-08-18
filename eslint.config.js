@@ -10,4 +10,10 @@ export default [
   // Type-aware rules (no-floating-promises, etc.) require parserOptions.project — deferred until tsconfig paths are stable.
   ...tsPlugin.configs['flat/recommended'],
   prettierConfig,
+  {
+    files: ['**/*.test.ts'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+    },
+  },
 ]

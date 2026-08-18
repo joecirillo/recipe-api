@@ -54,7 +54,7 @@ describe('GET /cuisines', () => {
   it('returns 200 with all cuisines when no query param', async () => {
     const res = await request('/cuisines', USER_KEY)
     expect(res.status).toBe(200)
-    const body = await res.json()
+    const body = await res.json() as Record<string, any>
     expect(body.status).toBe(200)
     expect(body.message).toBe('Cuisines retrieved')
     expect(body.data).toEqual(SAMPLE_CUISINES)
@@ -64,7 +64,7 @@ describe('GET /cuisines', () => {
   it('returns all cuisines for empty query string', async () => {
     const res = await request('/cuisines?query=', USER_KEY)
     expect(res.status).toBe(200)
-    const body = await res.json()
+    const body = await res.json() as Record<string, any>
     expect(body.message).toBe('Cuisines retrieved')
     expect(vi.mocked(cuisineService.listCuisines)).toHaveBeenCalledOnce()
     expect(vi.mocked(cuisineService.searchCuisines)).not.toHaveBeenCalled()
@@ -73,7 +73,7 @@ describe('GET /cuisines', () => {
   it('returns all cuisines for whitespace-only query', async () => {
     const res = await request('/cuisines?query=   ', USER_KEY)
     expect(res.status).toBe(200)
-    const body = await res.json()
+    const body = await res.json() as Record<string, any>
     expect(body.message).toBe('Cuisines retrieved')
     expect(vi.mocked(cuisineService.listCuisines)).toHaveBeenCalledOnce()
     expect(vi.mocked(cuisineService.searchCuisines)).not.toHaveBeenCalled()
@@ -83,7 +83,7 @@ describe('GET /cuisines', () => {
     vi.mocked(cuisineService.searchCuisines).mockResolvedValue([{ id: 1, name: 'Italian' }])
     const res = await request('/cuisines?query=ital', USER_KEY)
     expect(res.status).toBe(200)
-    const body = await res.json()
+    const body = await res.json() as Record<string, any>
     expect(body.message).toBe('Cuisines queried')
     expect(body.data).toEqual([{ id: 1, name: 'Italian' }])
     expect(vi.mocked(cuisineService.searchCuisines)).toHaveBeenCalledWith(expect.anything(), 'ital')
@@ -94,7 +94,7 @@ describe('GET /cuisines', () => {
     vi.mocked(cuisineService.searchCuisines).mockResolvedValue([])
     const res = await request('/cuisines?query=zzz', USER_KEY)
     expect(res.status).toBe(200)
-    const body = await res.json()
+    const body = await res.json() as Record<string, any>
     expect(body.message).toBe('Cuisines queried')
     expect(body.data).toEqual([])
   })

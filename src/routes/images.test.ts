@@ -79,7 +79,7 @@ describe('POST /recipes/images', () => {
     vi.mocked(imageService.uploadImage).mockResolvedValue(UPLOADED_URL)
 
     const res = await uploadRequest(makeFormData(makeFile()), USER_KEY)
-    const body = await res.json()
+    const body = await res.json() as Record<string, any>
 
     expect(res.status).toBe(200)
     expect(body.message).toBe('Image uploaded')
@@ -88,7 +88,7 @@ describe('POST /recipes/images', () => {
 
   it('returns 400 when file field is missing from form', async () => {
     const res = await uploadRequest(makeFormData(null), USER_KEY)
-    const body = await res.json()
+    const body = await res.json() as Record<string, any>
 
     expect(res.status).toBe(400)
     expect(body.message).toBe('File must not be empty')
@@ -101,7 +101,7 @@ describe('POST /recipes/images', () => {
     )
 
     const res = await uploadRequest(makeFormData(makeFile()), USER_KEY)
-    const body = await res.json()
+    const body = await res.json() as Record<string, any>
 
     expect(res.status).toBe(400)
     expect(body.message).toBe('File exceeds 25MB limit')
@@ -113,7 +113,7 @@ describe('POST /recipes/images', () => {
     )
 
     const res = await uploadRequest(makeFormData(makeFile('')), USER_KEY)
-    const body = await res.json()
+    const body = await res.json() as Record<string, any>
 
     expect(res.status).toBe(400)
     expect(body.message).toBe('File must not be empty')
@@ -125,7 +125,7 @@ describe('POST /recipes/images', () => {
     )
 
     const res = await uploadRequest(makeFormData(makeFile('pdf', 'doc.pdf', 'application/pdf')), USER_KEY)
-    const body = await res.json()
+    const body = await res.json() as Record<string, any>
 
     expect(res.status).toBe(400)
     expect(body.message).toBe('Unsupported file type. Allowed: jpeg, png, webp, gif, heic, heif')
@@ -152,7 +152,7 @@ describe('DELETE /recipes/images', () => {
     )
 
     const res = await deleteRequest('', USER_KEY)
-    const body = await res.json()
+    const body = await res.json() as Record<string, any>
 
     expect(res.status).toBe(400)
     expect(body.message).toBe('Image key must not be empty')
@@ -164,7 +164,7 @@ describe('DELETE /recipes/images', () => {
     )
 
     const res = await deleteRequest('other/abc-123.jpg', USER_KEY)
-    const body = await res.json()
+    const body = await res.json() as Record<string, any>
 
     expect(res.status).toBe(400)
     expect(body.message).toBe('Invalid image key')
