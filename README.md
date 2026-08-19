@@ -1,5 +1,9 @@
 # recipe-api
 
+Hono + Drizzle rewrite of `recipe-service` (Spring Boot), deployed on Cloudflare Workers.
+
+**Production URL:** `https://recipe-api.joecirillo02.workers.dev`
+
 ## Rate limiting
 
 Requests are rate limited to **60 per minute per API key**. Exceeding the limit returns a `429` response with the standard error envelope.
@@ -8,32 +12,47 @@ Requests are rate limited to **60 per minute per API key**. Exceeding the limit 
 
 ## Environment variables
 
-| Variable       | Description                                               |
-| -------------- | --------------------------------------------------------- |
-| `DATABASE_URL` | Postgres connection string for the Supabase/Neon database |
+All variables are injected at runtime via Cloudflare secrets (production) or `.dev.vars` (local).
 
-For local development, copy `.dev.vars.example` to `.dev.vars` and fill in the values. Wrangler reads `.dev.vars` automatically when running `pnpm dev`. In production, add `DATABASE_URL` as a Cloudflare Worker secret via `wrangler secret put DATABASE_URL`.
+| Variable        | Description                                          |
+| --------------- | ---------------------------------------------------- |
+| `DATABASE_URL`  | Postgres connection string (Supabase)                |
+| `USER_API_KEY`  | API key for standard access (`X-Api-Key` header)     |
+| `ADMIN_API_KEY` | API key for admin routes (e.g. `DELETE /recipes/:id`) |
 
-## Getting started
+`R2_PUBLIC_URL` and `IMAGE_BUCKET` are configured in `wrangler.jsonc` and do not need to be set as secrets.
 
-```txt
-npm install
-npm run dev
+## Local development
+
+```bash
+pnpm install
+cp .dev.vars.example .dev.vars  # fill in values
+pnpm dev
 ```
 
-```txt
-npm run deploy
+## Deployment
+
+### One-time setup
+
+1. Authenticate with Cloudflare: `pnpm exec wrangler login`
+2. Provision secrets (you'll be prompted to paste each value):
+
+```bash
+pnpm exec wrangler secret put DATABASE_URL
+pnpm exec wrangler secret put USER_API_KEY
+pnpm exec wrangler secret put ADMIN_API_KEY
 ```
 
-[For generating/synchronizing types based on your Worker configuration run](https://developers.cloudflare.com/workers/wrangler/commands/#types):
+3. Verify the `recipe-images` R2 bucket exists in your Cloudflare account. If not: `pnpm exec wrangler r2 bucket create recipe-images`
 
-```txt
-npm run cf-typegen
+### Deploy
+
+```bash
+pnpm run deploy
 ```
 
-Pass the `CloudflareBindings` as generics when instantiating `Hono`:
+### Regenerate Worker types after config changes
 
-```ts
-// src/index.ts
-const app = new Hono<{ Bindings: CloudflareBindings }>()
+```bash
+pnpm run cf-typegen
 ```
