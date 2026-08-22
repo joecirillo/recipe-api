@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { createDb } from '../db/client'
 import { buildSuccess } from '../lib/response'
 import { BadRequestError } from '../errors'
+import { requestLogger } from '../middleware/request-logger'
 import {
   createRecipe,
   deleteRecipe,
@@ -139,7 +140,7 @@ recipeRouter.get('/', async (c) => {
   return c.json(buildSuccess(200, 'Recipes retrieved', data), 200)
 })
 
-recipeRouter.post('/', async (c) => {
+recipeRouter.post('/', requestLogger('recipe upload'), async (c) => {
   const db = createDb(c.env.DATABASE_URL)
   const body = await c.req.json()
   const input = RecipeSaveSchema.parse(body)
@@ -157,7 +158,7 @@ recipeRouter.get('/:id', async (c) => {
   return c.json(buildSuccess(200, 'Recipe retrieved', data), 200)
 })
 
-recipeRouter.patch('/:id', async (c) => {
+recipeRouter.patch('/:id', requestLogger('recipe save'), async (c) => {
   const id = Number(c.req.param('id'))
   if (isNaN(id)) throw new BadRequestError('Invalid recipe id')
   const db = createDb(c.env.DATABASE_URL)
