@@ -17,15 +17,15 @@ import { resolveUnit } from './unit-service'
 
 type Db = ReturnType<typeof createDb>
 
-export type CuisineInput = { id?: number; name?: string }
+export type CuisineInput = { id?: number | null; name?: string }
 export type IngredientInput = {
-  id?: number
+  id?: number | null
   name?: string
   unitId: number
   quantity: number
   notes?: string | null
 }
-export type TagInput = { id?: number; name?: string }
+export type TagInput = { id?: number | null; name?: string }
 export type StepInput = { stepNumber: number; description: string; tip?: string | null }
 
 export type RecipeSaveInput = {

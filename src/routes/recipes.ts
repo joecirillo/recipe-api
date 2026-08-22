@@ -16,7 +16,7 @@ export const recipeRouter = new Hono<{ Bindings: CloudflareBindings }>()
 
 const CuisineInputSchema = z
   .object({
-    id: z.number().int().positive().optional(),
+    id: z.number().int().positive().nullish(),
     name: z.string().optional(),
   })
   .refine((c) => c.id != null || (c.name?.trim().length ?? 0) > 0, {
@@ -25,7 +25,7 @@ const CuisineInputSchema = z
 
 const IngredientInputSchema = z
   .object({
-    id: z.number().int().positive().optional(),
+    id: z.number().int().positive().nullish(),
     name: z.string().optional(),
     unitId: z.number().int().positive(),
     quantity: z.number().positive(),
@@ -37,7 +37,7 @@ const IngredientInputSchema = z
 
 const TagInputSchema = z
   .object({
-    id: z.number().int().positive().optional(),
+    id: z.number().int().positive().nullish(),
     name: z.string().optional(),
   })
   .refine((t) => t.id != null || (t.name?.trim().length ?? 0) > 0, {

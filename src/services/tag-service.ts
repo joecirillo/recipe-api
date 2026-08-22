@@ -23,7 +23,7 @@ export async function searchTags(db: Db, query: string): Promise<NamedEntityResp
   return rows.map(toResponse)
 }
 
-export async function resolveTag(db: Db, id?: number, name?: string): Promise<Tag> {
+export async function resolveTag(db: Db, id?: number | null, name?: string): Promise<Tag> {
   if (id == null && !name?.trim()) {
     throw new BadRequestError('Tag request must have either an ID or a name.')
   }

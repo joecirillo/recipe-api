@@ -23,7 +23,11 @@ export async function searchIngredients(db: Db, query: string): Promise<NamedEnt
   return rows.map(toResponse)
 }
 
-export async function resolveIngredient(db: Db, id?: number, name?: string): Promise<Ingredient> {
+export async function resolveIngredient(
+  db: Db,
+  id?: number | null,
+  name?: string,
+): Promise<Ingredient> {
   if (id == null && !name?.trim()) {
     throw new BadRequestError('Ingredient request must have either an ID or a name.')
   }
