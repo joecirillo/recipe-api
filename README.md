@@ -22,6 +22,12 @@ All variables are injected at runtime via Cloudflare secrets (production) or `.d
 
 `R2_PUBLIC_URL` and `IMAGE_BUCKET` are configured in `wrangler.jsonc` and do not need to be set as secrets.
 
+`R2_PUBLIC_URL` points at a custom domain (`cdn.foodiesfinds.com`) connected to the `recipe-images`
+R2 bucket. Connecting a custom domain to an R2 bucket is a Cloudflare dashboard-only step (R2 →
+`recipe-images` → Settings → Custom Domains) and isn't something `wrangler.jsonc` can provision —
+if you're setting this up fresh, connect the domain there before deploying, otherwise requests to
+`R2_PUBLIC_URL` will 404.
+
 ## Local development
 
 ```bash
