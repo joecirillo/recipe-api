@@ -23,7 +23,7 @@ export async function searchCuisines(db: Db, query: string): Promise<NamedEntity
   return rows.map(toResponse)
 }
 
-export async function resolveCuisine(db: Db, id?: number, name?: string): Promise<Cuisine> {
+export async function resolveCuisine(db: Db, id?: number | null, name?: string): Promise<Cuisine> {
   if (id == null && !name?.trim()) {
     throw new BadRequestError('Cuisine request must have either an ID or a name.')
   }

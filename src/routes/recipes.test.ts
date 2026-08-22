@@ -368,6 +368,19 @@ describe('POST /recipes', () => {
     expect(res.status).toBe(201)
   })
 
+  it('accepts explicit null id on cuisine, ingredients, and tags', async () => {
+    const res = await request('/recipes', {
+      method: 'POST',
+      body: {
+        ...SAVE_BODY,
+        cuisine: { id: null, name: 'Italian' },
+        ingredients: [{ id: null, name: 'Spaghetti', unitId: 1, quantity: 200 }],
+        tags: [{ id: null, name: 'Quick' }],
+      },
+    })
+    expect(res.status).toBe(201)
+  })
+
   it('returns 400 when cuisine has neither id nor name', async () => {
     const res = await request('/recipes', {
       method: 'POST',
@@ -449,6 +462,19 @@ describe('PATCH /recipes/:id', () => {
     const res = await request('/recipes/1', { method: 'PATCH', body: { ingredients: [] } })
     expect(res.status).toBe(400)
     expect(vi.mocked(recipeService.updateRecipe)).not.toHaveBeenCalled()
+  })
+
+  it('accepts explicit null id on cuisine, ingredients, and tags', async () => {
+    vi.mocked(recipeService.updateRecipe).mockResolvedValue(FULL_RECIPE)
+    const res = await request('/recipes/1', {
+      method: 'PATCH',
+      body: {
+        cuisine: { id: null, name: 'Italian' },
+        ingredients: [{ id: null, name: 'Spaghetti', unitId: 1, quantity: 200 }],
+        tags: [{ id: null, name: 'Quick' }],
+      },
+    })
+    expect(res.status).toBe(200)
   })
 
   it('returns 400 when steps is an empty array', async () => {
