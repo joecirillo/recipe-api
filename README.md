@@ -41,6 +41,16 @@ The old `POST /recipes/images` (server-mediated multipart upload) is now depreca
 `Deprecation` header pointing at the presign endpoint — but stays functional until callers (e.g.
 foodies-finds) migrate to the presigned flow.
 
+### Image URL storage
+
+`recipes.imageUrl` stores the R2 **key** (e.g. `recipes/<uuid>.jpg`), not a full URL — clients
+should submit the presign response's `key` (not its `imageUrl`) as the recipe's `imageUrl` field.
+`R2_PUBLIC_URL` is prepended on every read (`GET /recipes`, `GET /recipes/:id`, search, and the
+`POST`/`PATCH` responses), so a future domain change (see #41) never requires rewriting existing
+rows. Rows written before this change still hold a full URL and are returned unchanged — no
+migration is required, though existing rows can optionally be backfilled to bare keys for
+consistency.
+
 ## Local development
 
 ```bash
