@@ -6,7 +6,7 @@ import { listTags, searchTags } from '../services/tag-service'
 export const tagRouter = new Hono<{ Bindings: CloudflareBindings }>()
 
 tagRouter.get('/', async (c) => {
-  const db = createDb(c.env.DATABASE_URL)
+  const db = createDb(c.env.HYPERDRIVE.connectionString)
   const query = c.req.query('query')
 
   if (!query || !query.trim()) {

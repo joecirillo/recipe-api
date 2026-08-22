@@ -25,6 +25,14 @@
       "bucket_name": "recipe-images"
     }
   ],
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      // TODO: replace with the id printed by `wrangler hyperdrive create`
+      // (see README's Hyperdrive setup section) before deploying this branch.
+      "id": "<HYPERDRIVE_ID>"
+    }
+  ],
   // "d1_databases": [
   //   {
   //     "binding": "MY_DB",

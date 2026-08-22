@@ -16,11 +16,34 @@ All variables are injected at runtime via Cloudflare secrets (production) or `.d
 
 | Variable        | Description                                          |
 | --------------- | ---------------------------------------------------- |
-| `DATABASE_URL`  | Postgres connection string (Supabase)                |
+| `DATABASE_URL`  | Postgres **direct** connection string (Supabase, port 5432) — used only by `drizzle-kit` migrations, which run outside the Worker and can't use the `HYPERDRIVE` binding |
 | `USER_API_KEY`  | API key for standard access (`X-Api-Key` header)     |
 | `ADMIN_API_KEY` | API key for admin routes (e.g. `DELETE /recipes/:id`) |
 
 `R2_PUBLIC_URL` and `IMAGE_BUCKET` are configured in `wrangler.jsonc` and do not need to be set as secrets.
+
+### Database connection (Hyperdrive)
+
+The Worker itself queries Postgres through a [Hyperdrive](https://developers.cloudflare.com/hyperdrive/)
+binding (`HYPERDRIVE`), not `DATABASE_URL` directly — Hyperdrive keeps a warm connection pool near
+Supabase so requests don't pay a full TCP+TLS+auth handshake on every invocation.
+
+Both `DATABASE_URL` and the Hyperdrive config must point at Supabase's **direct connection (port
+5432)**, not the Supavisor pooler (port 6543). Supavisor runs in transaction-pooling mode, which
+doesn't support prepared statements — routing Hyperdrive through it would reintroduce that
+constraint on top of Hyperdrive's own pooling. Supabase's direct connection defaults to IPv6; if
+Hyperdrive's egress can't reach it, Supabase's IPv4 add-on (Pro plan+) provides a static IPv4
+address for the direct connection.
+
+One-time setup (see also the Deployment section below):
+
+```bash
+pnpm exec wrangler hyperdrive create recipe-api-db \
+  --connection-string="postgresql://user:password@host:5432/dbname"
+```
+
+Copy the printed `id` into the `hyperdrive` binding's `id` field in `wrangler.jsonc`, replacing
+`<HYPERDRIVE_ID>`.
 
 ## Local development
 
@@ -29,6 +52,10 @@ pnpm install
 cp .dev.vars.example .dev.vars  # fill in values
 pnpm dev
 ```
+
+`.dev.vars` needs both `DATABASE_URL` (for `drizzle-kit`) and
+`CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE` (read by `wrangler dev` in place of the
+real Hyperdrive binding) pointed at Supabase's direct connection.
 
 ## Deployment
 
@@ -44,6 +71,8 @@ pnpm exec wrangler secret put ADMIN_API_KEY
 ```
 
 3. Verify the `recipe-images` R2 bucket exists in your Cloudflare account. If not: `pnpm exec wrangler r2 bucket create recipe-images`
+4. Create the Hyperdrive config (see [Database connection](#database-connection-hyperdrive) above)
+   and update the `id` in `wrangler.jsonc`'s `hyperdrive` binding.
 
 ### Deploy
 

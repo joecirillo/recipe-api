@@ -91,7 +91,7 @@ const RecipeUpdateSchema = z.object({
 })
 
 recipeRouter.get('/', async (c) => {
-  const db = createDb(c.env.DATABASE_URL)
+  const db = createDb(c.env.HYPERDRIVE.connectionString)
 
   const name = c.req.query('name')
   const tag = c.req.query('tag')
@@ -141,7 +141,7 @@ recipeRouter.get('/', async (c) => {
 })
 
 recipeRouter.post('/', requestLogger('recipe upload'), async (c) => {
-  const db = createDb(c.env.DATABASE_URL)
+  const db = createDb(c.env.HYPERDRIVE.connectionString)
   const body = await c.req.json()
   const input = RecipeSaveSchema.parse(body)
   const data = await createRecipe(db, input)
@@ -153,7 +153,7 @@ recipeRouter.post('/', requestLogger('recipe upload'), async (c) => {
 recipeRouter.get('/:id', async (c) => {
   const id = Number(c.req.param('id'))
   if (isNaN(id)) throw new BadRequestError('Invalid recipe id')
-  const db = createDb(c.env.DATABASE_URL)
+  const db = createDb(c.env.HYPERDRIVE.connectionString)
   const data = await getRecipe(db, id)
   return c.json(buildSuccess(200, 'Recipe retrieved', data), 200)
 })
@@ -161,7 +161,7 @@ recipeRouter.get('/:id', async (c) => {
 recipeRouter.patch('/:id', requestLogger('recipe save'), async (c) => {
   const id = Number(c.req.param('id'))
   if (isNaN(id)) throw new BadRequestError('Invalid recipe id')
-  const db = createDb(c.env.DATABASE_URL)
+  const db = createDb(c.env.HYPERDRIVE.connectionString)
   const body = await c.req.json()
   const input = RecipeUpdateSchema.parse(body)
   const data = await updateRecipe(db, id, input)
@@ -171,7 +171,7 @@ recipeRouter.patch('/:id', requestLogger('recipe save'), async (c) => {
 recipeRouter.delete('/:id', async (c) => {
   const id = Number(c.req.param('id'))
   if (isNaN(id)) throw new BadRequestError('Invalid recipe id')
-  const db = createDb(c.env.DATABASE_URL)
+  const db = createDb(c.env.HYPERDRIVE.connectionString)
   await deleteRecipe(db, id)
   return c.body(null, 204)
 })

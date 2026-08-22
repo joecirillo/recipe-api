@@ -12,7 +12,7 @@ vi.mock('../services/recipeService')
 type TestBindings = {
   USER_API_KEY: string
   ADMIN_API_KEY: string
-  DATABASE_URL: string
+  HYPERDRIVE: { connectionString: string }
 }
 
 const USER_KEY = 'test-user-key'
@@ -20,7 +20,7 @@ const ADMIN_KEY = 'test-admin-key'
 const TEST_ENV: TestBindings = {
   USER_API_KEY: USER_KEY,
   ADMIN_API_KEY: ADMIN_KEY,
-  DATABASE_URL: 'postgresql://test',
+  HYPERDRIVE: { connectionString: 'postgresql://test' },
 }
 
 const SAMPLE_LIST_ITEMS: recipeService.RecipeListItem[] = [
