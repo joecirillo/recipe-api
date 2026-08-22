@@ -4,6 +4,12 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-07-29",
   "compatibility_flags": ["nodejs_compat"],
+  "routes": [
+    {
+      "pattern": "api.foodiesfinds.com/*",
+      "zone_name": "foodiesfinds.com"
+    }
+  ],
   "vars": {
     "R2_PUBLIC_URL": "https://pub-017886dc539b41789e7c76de04239c5d.r2.dev"
   },
