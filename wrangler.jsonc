@@ -28,9 +28,7 @@
   "hyperdrive": [
     {
       "binding": "HYPERDRIVE",
-      // TODO: replace with the id printed by `wrangler hyperdrive create`
-      // (see README's Hyperdrive setup section) before deploying this branch.
-      "id": "<HYPERDRIVE_ID>"
+      "id": "4465e315e0e242a3a438723c852943d1"
     }
   ],
   // "d1_databases": [
