@@ -51,6 +51,12 @@ rows. Rows written before this change still hold a full URL and are returned unc
 migration is required, though existing rows can optionally be backfilled to bare keys for
 consistency.
 
+`R2_PUBLIC_URL` points at a custom domain (`cdn.foodiesfinds.com`) connected to the `recipe-images`
+R2 bucket. Connecting a custom domain to an R2 bucket is a Cloudflare dashboard-only step (R2 →
+`recipe-images` → Settings → Custom Domains) and isn't something `wrangler.jsonc` can provision —
+if you're setting this up fresh, connect the domain there before deploying, otherwise requests to
+`R2_PUBLIC_URL` will 404.
+
 ## Local development
 
 ```bash
