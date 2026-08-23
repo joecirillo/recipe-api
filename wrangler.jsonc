@@ -11,7 +11,8 @@
     }
   ],
   "vars": {
-    "R2_PUBLIC_URL": "https://cdn.foodiesfinds.com"
+    "R2_PUBLIC_URL": "https://cdn.foodiesfinds.com",
+    "R2_BUCKET_NAME": "recipe-images"
   },
   // "kv_namespaces": [
   //   {

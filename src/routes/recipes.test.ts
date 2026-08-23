@@ -13,6 +13,7 @@ type TestBindings = {
   USER_API_KEY: string
   ADMIN_API_KEY: string
   HYPERDRIVE: { connectionString: string }
+  R2_PUBLIC_URL: string
 }
 
 const USER_KEY = 'test-user-key'
@@ -21,6 +22,7 @@ const TEST_ENV: TestBindings = {
   USER_API_KEY: USER_KEY,
   ADMIN_API_KEY: ADMIN_KEY,
   HYPERDRIVE: { connectionString: 'postgresql://test' },
+  R2_PUBLIC_URL: 'https://pub-test.r2.dev',
 }
 
 const SAMPLE_LIST_ITEMS: recipeService.RecipeListItem[] = [
@@ -112,6 +114,15 @@ describe('GET /recipes', () => {
     expect(body.message).toBe('Recipes retrieved')
     expect(body.data).toEqual(SAMPLE_LIST_ITEMS)
     expect(vi.mocked(recipeService.listRecipes)).toHaveBeenCalledWith(expect.anything(), 0, 12)
+  })
+
+  it('resolves a bare stored key to a full public URL', async () => {
+    vi.mocked(recipeService.listRecipes).mockResolvedValue([
+      { id: 3, name: 'Tacos', imageUrl: 'recipes/xyz-789.jpg' },
+    ])
+    const res = await request('/recipes')
+    const body = await res.json() as Record<string, any>
+    expect(body.data[0].imageUrl).toBe(`${TEST_ENV.R2_PUBLIC_URL}/recipes/xyz-789.jpg`)
   })
 
   it('passes custom page and limit params', async () => {
@@ -303,6 +314,30 @@ describe('POST /recipes', () => {
     expect(body.data.steps).toHaveLength(1)
   })
 
+  it('strips the public URL prefix before storing a presigned imageUrl', async () => {
+    const res = await request('/recipes', {
+      method: 'POST',
+      body: { ...SAVE_BODY, imageUrl: `${TEST_ENV.R2_PUBLIC_URL}/recipes/xyz-789.jpg` },
+    })
+    expect(res.status).toBe(201)
+    expect(vi.mocked(recipeService.createRecipe)).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ imageUrl: 'recipes/xyz-789.jpg' }),
+    )
+  })
+
+  it('stores an already-bare imageUrl key unchanged', async () => {
+    const res = await request('/recipes', {
+      method: 'POST',
+      body: { ...SAVE_BODY, imageUrl: 'recipes/xyz-789.jpg' },
+    })
+    expect(res.status).toBe(201)
+    expect(vi.mocked(recipeService.createRecipe)).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ imageUrl: 'recipes/xyz-789.jpg' }),
+    )
+  })
+
   it('returns 400 when name is too short', async () => {
     const res = await request('/recipes', {
       method: 'POST',
@@ -455,6 +490,29 @@ describe('PATCH /recipes/:id', () => {
       expect.anything(),
       1,
       expect.objectContaining({ calories: null }),
+    )
+  })
+
+  it('strips the public URL prefix before storing a presigned imageUrl', async () => {
+    vi.mocked(recipeService.updateRecipe).mockResolvedValue(FULL_RECIPE)
+    await request('/recipes/1', {
+      method: 'PATCH',
+      body: { imageUrl: `${TEST_ENV.R2_PUBLIC_URL}/recipes/xyz-789.jpg` },
+    })
+    expect(vi.mocked(recipeService.updateRecipe)).toHaveBeenCalledWith(
+      expect.anything(),
+      1,
+      expect.objectContaining({ imageUrl: 'recipes/xyz-789.jpg' }),
+    )
+  })
+
+  it('leaves an explicit null imageUrl untouched (nullifies the field)', async () => {
+    vi.mocked(recipeService.updateRecipe).mockResolvedValue(FULL_RECIPE)
+    await request('/recipes/1', { method: 'PATCH', body: { imageUrl: null } })
+    expect(vi.mocked(recipeService.updateRecipe)).toHaveBeenCalledWith(
+      expect.anything(),
+      1,
+      expect.objectContaining({ imageUrl: null }),
     )
   })
 

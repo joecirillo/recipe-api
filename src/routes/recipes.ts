@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { createDb } from '../db/client'
 import { buildSuccess } from '../lib/response'
 import { BadRequestError } from '../errors'
+import { toStorageKey, withPublicImageUrl } from '../lib/image-url'
 import { requestLogger } from '../middleware/request-logger'
 import {
   createRecipe,
@@ -128,7 +129,14 @@ recipeRouter.get('/', async (c) => {
 
   if (hasFilter) {
     const data = await searchRecipes(db, { name, tag, cuisine, ingredient, tagId, cuisineId, ingredientId })
-    return c.json(buildSuccess(200, 'Recipes queried', data), 200)
+    return c.json(
+      buildSuccess(
+        200,
+        'Recipes queried',
+        data.map((r) => withPublicImageUrl(r, c.env.R2_PUBLIC_URL)),
+      ),
+      200,
+    )
   }
 
   const page = Number(c.req.query('page') ?? 0)
@@ -137,15 +145,23 @@ recipeRouter.get('/', async (c) => {
     throw new BadRequestError('Invalid page or limit')
   }
   const data = await listRecipes(db, page, limit)
-  return c.json(buildSuccess(200, 'Recipes retrieved', data), 200)
+  return c.json(
+    buildSuccess(
+      200,
+      'Recipes retrieved',
+      data.map((r) => withPublicImageUrl(r, c.env.R2_PUBLIC_URL)),
+    ),
+    200,
+  )
 })
 
 recipeRouter.post('/', requestLogger('recipe upload'), async (c) => {
   const db = createDb(c.env.HYPERDRIVE.connectionString)
   const body = await c.req.json()
   const input = RecipeSaveSchema.parse(body)
+  if (input.imageUrl) input.imageUrl = toStorageKey(input.imageUrl, c.env.R2_PUBLIC_URL)
   const data = await createRecipe(db, input)
-  return c.json(buildSuccess(201, 'Recipe saved', data), 201, {
+  return c.json(buildSuccess(201, 'Recipe saved', withPublicImageUrl(data, c.env.R2_PUBLIC_URL)), 201, {
     Location: `/recipes/${data.id}`,
   })
 })
@@ -155,7 +171,7 @@ recipeRouter.get('/:id', async (c) => {
   if (isNaN(id)) throw new BadRequestError('Invalid recipe id')
   const db = createDb(c.env.HYPERDRIVE.connectionString)
   const data = await getRecipe(db, id)
-  return c.json(buildSuccess(200, 'Recipe retrieved', data), 200)
+  return c.json(buildSuccess(200, 'Recipe retrieved', withPublicImageUrl(data, c.env.R2_PUBLIC_URL)), 200)
 })
 
 recipeRouter.patch('/:id', requestLogger('recipe save'), async (c) => {
@@ -164,8 +180,9 @@ recipeRouter.patch('/:id', requestLogger('recipe save'), async (c) => {
   const db = createDb(c.env.HYPERDRIVE.connectionString)
   const body = await c.req.json()
   const input = RecipeUpdateSchema.parse(body)
+  if (input.imageUrl) input.imageUrl = toStorageKey(input.imageUrl, c.env.R2_PUBLIC_URL)
   const data = await updateRecipe(db, id, input)
-  return c.json(buildSuccess(200, 'Recipe updated', data), 200)
+  return c.json(buildSuccess(200, 'Recipe updated', withPublicImageUrl(data, c.env.R2_PUBLIC_URL)), 200)
 })
 
 recipeRouter.delete('/:id', async (c) => {
