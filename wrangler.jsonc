@@ -26,6 +26,12 @@
       "bucket_name": "recipe-images"
     }
   ],
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "4465e315e0e242a3a438723c852943d1"
+    }
+  ],
   // "d1_databases": [
   //   {
   //     "binding": "MY_DB",

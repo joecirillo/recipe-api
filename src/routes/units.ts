@@ -6,7 +6,7 @@ import { listUnits } from '../services/unit-service'
 export const unitRouter = new Hono<{ Bindings: CloudflareBindings }>()
 
 unitRouter.get('/', async (c) => {
-  const db = createDb(c.env.DATABASE_URL)
+  const db = createDb(c.env.HYPERDRIVE.connectionString)
   const data = await listUnits(db)
   return c.json(buildSuccess(200, 'Units retrieved', data), 200)
 })

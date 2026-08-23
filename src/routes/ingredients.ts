@@ -6,7 +6,7 @@ import { listIngredients, searchIngredients } from '../services/ingredient-servi
 export const ingredientRouter = new Hono<{ Bindings: CloudflareBindings }>()
 
 ingredientRouter.get('/', async (c) => {
-  const db = createDb(c.env.DATABASE_URL)
+  const db = createDb(c.env.HYPERDRIVE.connectionString)
   const query = c.req.query('query')
 
   if (!query || !query.trim()) {

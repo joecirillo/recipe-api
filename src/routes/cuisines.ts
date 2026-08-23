@@ -6,7 +6,7 @@ import { listCuisines, searchCuisines } from '../services/cuisine-service'
 export const cuisineRouter = new Hono<{ Bindings: CloudflareBindings }>()
 
 cuisineRouter.get('/', async (c) => {
-  const db = createDb(c.env.DATABASE_URL)
+  const db = createDb(c.env.HYPERDRIVE.connectionString)
   const query = c.req.query('query')
 
   if (!query || !query.trim()) {
