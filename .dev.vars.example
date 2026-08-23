@@ -1,1 +1,4 @@
 DATABASE_URL=postgresql://user:password@host/dbname
+R2_ACCOUNT_ID=your-cloudflare-account-id
+R2_ACCESS_KEY_ID=your-r2-api-token-access-key-id
+R2_SECRET_ACCESS_KEY=your-r2-api-token-secret-access-key

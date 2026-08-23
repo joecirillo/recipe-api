@@ -4,15 +4,21 @@ import { BadRequestError } from '../errors'
 import { authMiddleware } from '../middleware/auth'
 import { errorHandler } from '../middleware/error-handler'
 import * as imageService from '../services/image-service'
+import * as presignService from '../services/presign-service'
 import { imageRouter } from './images'
 
 vi.mock('../services/image-service')
+vi.mock('../services/presign-service')
 
 type TestBindings = {
   USER_API_KEY: string
   ADMIN_API_KEY: string
   IMAGE_BUCKET: R2Bucket
   R2_PUBLIC_URL: string
+  R2_BUCKET_NAME: string
+  R2_ACCOUNT_ID: string
+  R2_ACCESS_KEY_ID: string
+  R2_SECRET_ACCESS_KEY: string
 }
 
 const USER_KEY = 'test-user-key'
@@ -22,6 +28,10 @@ const TEST_ENV: TestBindings = {
   ADMIN_API_KEY: ADMIN_KEY,
   IMAGE_BUCKET: {} as unknown as R2Bucket,
   R2_PUBLIC_URL: 'https://pub-test.r2.dev',
+  R2_BUCKET_NAME: 'recipe-images',
+  R2_ACCOUNT_ID: 'test-account',
+  R2_ACCESS_KEY_ID: 'test-key-id',
+  R2_SECRET_ACCESS_KEY: 'test-secret',
 }
 
 const UPLOADED_URL = 'https://pub-test.r2.dev/recipes/abc-123.jpg'
@@ -48,6 +58,16 @@ function deleteRequest(key: string, apiKey?: string | null) {
   return app.request(
     `/recipes/images?key=${encodeURIComponent(key)}`,
     { method: 'DELETE', headers },
+    TEST_ENV,
+  )
+}
+
+function presignRequest(body: unknown, apiKey?: string | null) {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (apiKey != null) headers['X-Api-Key'] = apiKey
+  return app.request(
+    '/recipes/images/presign',
+    { method: 'POST', body: JSON.stringify(body), headers },
     TEST_ENV,
   )
 }
@@ -84,6 +104,15 @@ describe('POST /recipes/images', () => {
     expect(res.status).toBe(200)
     expect(body.message).toBe('Image uploaded')
     expect(body.data).toBe(UPLOADED_URL)
+  })
+
+  it('marks the endpoint deprecated in favor of the presign endpoint', async () => {
+    vi.mocked(imageService.uploadImage).mockResolvedValue(UPLOADED_URL)
+
+    const res = await uploadRequest(makeFormData(makeFile()), USER_KEY)
+
+    expect(res.headers.get('Deprecation')).toBe('true')
+    expect(res.headers.get('Link')).toBe('</recipes/images/presign>; rel="successor-version"')
   })
 
   it('returns 400 when file field is missing from form', async () => {
@@ -180,5 +209,69 @@ describe('DELETE /recipes/images', () => {
 
     const res = await deleteRequest('recipes/abc-123.jpg', USER_KEY)
     expect(res.status).toBe(204)
+  })
+})
+
+describe('POST /recipes/images/presign', () => {
+  const PRESIGNED_RESULT = {
+    uploadUrl: 'https://test-account.r2.cloudflarestorage.com/signed',
+    key: 'recipes/abc-123.jpg',
+    imageUrl: 'https://pub-test.r2.dev/recipes/abc-123.jpg',
+  }
+
+  it('returns 200 with the presigned upload payload on a valid request', async () => {
+    vi.mocked(presignService.createPresignedUpload).mockResolvedValue(PRESIGNED_RESULT)
+
+    const res = await presignRequest({ contentType: 'image/jpeg', contentLength: 1024 }, USER_KEY)
+    const body = (await res.json()) as Record<string, any>
+
+    expect(res.status).toBe(200)
+    expect(body.message).toBe('Presigned upload URL created')
+    expect(body.data).toEqual(PRESIGNED_RESULT)
+    expect(vi.mocked(presignService.createPresignedUpload)).toHaveBeenCalledWith(
+      {
+        accountId: TEST_ENV.R2_ACCOUNT_ID,
+        accessKeyId: TEST_ENV.R2_ACCESS_KEY_ID,
+        secretAccessKey: TEST_ENV.R2_SECRET_ACCESS_KEY,
+        publicUrl: TEST_ENV.R2_PUBLIC_URL,
+      },
+      TEST_ENV.R2_BUCKET_NAME,
+      'image/jpeg',
+      1024,
+    )
+  })
+
+  it('returns 400 for a missing contentType (validation error)', async () => {
+    const res = await presignRequest({ contentLength: 1024 }, USER_KEY)
+
+    expect(res.status).toBe(400)
+    expect(vi.mocked(presignService.createPresignedUpload)).not.toHaveBeenCalled()
+  })
+
+  it('returns 400 for a non-positive contentLength (validation error)', async () => {
+    const res = await presignRequest({ contentType: 'image/jpeg', contentLength: 0 }, USER_KEY)
+
+    expect(res.status).toBe(400)
+    expect(vi.mocked(presignService.createPresignedUpload)).not.toHaveBeenCalled()
+  })
+
+  it('returns 400 when the service rejects an unsupported file type', async () => {
+    vi.mocked(presignService.createPresignedUpload).mockRejectedValue(
+      new BadRequestError('Unsupported file type. Allowed: jpeg, png, webp, gif, heic, heif'),
+    )
+
+    const res = await presignRequest(
+      { contentType: 'application/pdf', contentLength: 1024 },
+      USER_KEY,
+    )
+    const body = (await res.json()) as Record<string, any>
+
+    expect(res.status).toBe(400)
+    expect(body.message).toBe('Unsupported file type. Allowed: jpeg, png, webp, gif, heic, heif')
+  })
+
+  it('returns 401 when API key is missing', async () => {
+    const res = await presignRequest({ contentType: 'image/jpeg', contentLength: 1024 }, null)
+    expect(res.status).toBe(401)
   })
 })
