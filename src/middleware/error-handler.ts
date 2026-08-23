@@ -24,6 +24,10 @@ export const errorHandler: ErrorHandler = (err, c) => {
     return c.json(buildError(400, message, path), 400)
   }
 
+  if (err instanceof SyntaxError) {
+    return c.json(buildError(400, 'Malformed JSON in request body', path), 400)
+  }
+
   if (err instanceof HTTPException) {
     return c.json(buildError(err.status, err.message, path), err.status)
   }

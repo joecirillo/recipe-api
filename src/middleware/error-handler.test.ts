@@ -33,6 +33,10 @@ function buildTestApp() {
   app.get('/throw/unhandled', () => {
     throw new Error('something broke')
   })
+  app.post('/throw/malformed-json', async (c) => {
+    await c.req.json()
+    return new Response()
+  })
 
   return app
 }
@@ -44,7 +48,7 @@ const ISO_REGEX = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/
 describe('errorHandler', () => {
   it('maps NotFoundError to 404 with default message', async () => {
     const res = await app.request('/throw/not-found')
-    const body = await res.json() as Record<string, any>
+    const body = (await res.json()) as Record<string, any>
 
     expect(res.status).toBe(404)
     expect(body.message).toBe('Not found')
@@ -53,7 +57,7 @@ describe('errorHandler', () => {
 
   it('maps NotFoundError to 404 with custom message', async () => {
     const res = await app.request('/throw/not-found-custom')
-    const body = await res.json() as Record<string, any>
+    const body = (await res.json()) as Record<string, any>
 
     expect(res.status).toBe(404)
     expect(body.message).toBe('Tag not found')
@@ -61,7 +65,7 @@ describe('errorHandler', () => {
 
   it('maps BadRequestError to 400 with default message', async () => {
     const res = await app.request('/throw/bad-request')
-    const body = await res.json() as Record<string, any>
+    const body = (await res.json()) as Record<string, any>
 
     expect(res.status).toBe(400)
     expect(body.message).toBe('Bad request')
@@ -69,7 +73,7 @@ describe('errorHandler', () => {
 
   it('maps BadRequestError to 400 with custom message', async () => {
     const res = await app.request('/throw/bad-request-custom')
-    const body = await res.json() as Record<string, any>
+    const body = (await res.json()) as Record<string, any>
 
     expect(res.status).toBe(400)
     expect(body.message).toBe('Name is required')
@@ -77,7 +81,7 @@ describe('errorHandler', () => {
 
   it('maps DuplicateError to 409 with default message', async () => {
     const res = await app.request('/throw/duplicate')
-    const body = await res.json() as Record<string, any>
+    const body = (await res.json()) as Record<string, any>
 
     expect(res.status).toBe(409)
     expect(body.message).toBe('Data integrity violation')
@@ -85,7 +89,7 @@ describe('errorHandler', () => {
 
   it('maps DuplicateError to 409 with custom message', async () => {
     const res = await app.request('/throw/duplicate-custom')
-    const body = await res.json() as Record<string, any>
+    const body = (await res.json()) as Record<string, any>
 
     expect(res.status).toBe(409)
     expect(body.message).toBe('Cuisine already exists')
@@ -93,12 +97,24 @@ describe('errorHandler', () => {
 
   it('maps ZodError to 400 with first issue message only', async () => {
     const res = await app.request('/throw/zod')
-    const body = await res.json() as Record<string, any>
+    const body = (await res.json()) as Record<string, any>
 
     // z.object({ name: z.string() }).parse({ name: 42 }) produces a single issue
     // for the `name` field; only that first issue's message is surfaced
     expect(res.status).toBe(400)
     expect(body.message).toBe('Invalid input: expected string, received number')
+  })
+
+  it('maps malformed JSON body to 400', async () => {
+    const res = await app.request('/throw/malformed-json', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: 'not json',
+    })
+    const body = (await res.json()) as Record<string, any>
+
+    expect(res.status).toBe(400)
+    expect(body.message).toBe('Malformed JSON in request body')
   })
 
   it('maps unhandled errors to 500 without leaking details', async () => {
@@ -112,7 +128,7 @@ describe('errorHandler', () => {
 
   it('includes correct envelope shape on error responses', async () => {
     const res = await app.request('/throw/not-found')
-    const body = await res.json() as Record<string, any>
+    const body = (await res.json()) as Record<string, any>
 
     expect(ISO_REGEX.test(body.timestamp)).toBe(true)
     expect(typeof body.status).toBe('number')
