@@ -94,6 +94,19 @@ real Hyperdrive binding) pointed at Supabase's direct connection.
 
 ## Deployment
 
+Pushes to `main` run `.github/workflows/deploy.yml`: install, `pnpm lint`, `pnpm format:check`,
+`pnpm test`, then `wrangler deploy`. The deploy step only runs if lint/format/test all pass.
+
+### CI/CD secrets
+
+Set these as [GitHub Actions repository secrets](https://github.com/settings/secrets), not in
+`wrangler.jsonc` — the account ID is treated as sensitive alongside the API token.
+
+| Secret                  | Description                                                          |
+| ----------------------- | ---------------------------------------------------------------------- |
+| `CLOUDFLARE_API_TOKEN`  | Token with `Workers Scripts:Edit` permission, scoped to this account |
+| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare account ID the Worker deploys to                          |
+
 ### One-time setup
 
 1. Authenticate with Cloudflare: `pnpm exec wrangler login`
