@@ -1,5 +1,19 @@
 import { describe, expect, it, vi } from 'vitest'
-import { listRecipes, searchRecipes } from './recipeService'
+import { createRecipe, listRecipes, searchRecipes } from './recipeService'
+import { recipes } from '../db/schema'
+
+vi.mock('./cuisine-service', () => ({
+  resolveCuisine: vi.fn().mockResolvedValue({ id: 1, name: 'Italian' }),
+}))
+vi.mock('./ingredient-service', () => ({
+  resolveIngredient: vi.fn().mockResolvedValue({ id: 10, name: 'Spaghetti' }),
+}))
+vi.mock('./unit-service', () => ({
+  resolveUnit: vi.fn().mockResolvedValue({ id: 1, name: 'Gram', abbreviation: 'g' }),
+}))
+vi.mock('./tag-service', () => ({
+  resolveTag: vi.fn().mockResolvedValue({ id: 5, name: 'Quick' }),
+}))
 
 function makeDb(rows: { id: number; name: string; imageUrl: string | null }[]) {
   const chain = {
@@ -167,5 +181,75 @@ describe('listRecipes', () => {
     await listRecipes(db, 2, 999)
     expect(chain.limit).toHaveBeenCalledWith(100)
     expect(chain.offset).toHaveBeenCalledWith(200)
+  })
+})
+
+// The real postgres driver throws on `undefined` bind params (only `null` is a valid
+// SQL NULL), so the values passed to `.insert(recipes).values(...)` must never contain
+// undefined for an omitted optional field. A plain mock wouldn't reject on undefined the
+// way the driver does, so these tests assert on the captured values object directly.
+function makeCreateDb(recipeRow: { id: number; [key: string]: unknown }) {
+  const insertedRecipeValues: Record<string, unknown>[] = []
+  const tx = {
+    insert: vi.fn((table: unknown) => ({
+      values: vi.fn((vals: Record<string, unknown>) => {
+        if (table === recipes) {
+          insertedRecipeValues.push(vals)
+          return { returning: vi.fn().mockResolvedValue([{ id: recipeRow.id }]) }
+        }
+        return Promise.resolve(undefined)
+      }),
+    })),
+  }
+  const db = {
+    transaction: vi.fn((cb: (tx: unknown) => Promise<unknown>) => cb(tx)),
+    query: { recipes: { findFirst: vi.fn().mockResolvedValue(recipeRow) } },
+  } as unknown as Parameters<typeof createRecipe>[0]
+  return { db, insertedRecipeValues }
+}
+
+const CREATE_RECIPE_ROW = {
+  id: 1,
+  name: 'Pasta',
+  description: '',
+  author: '',
+  calories: null,
+  servings: 2,
+  cookingTime: 10,
+  preparationTime: 5,
+  imageUrl: null,
+  createdAt: new Date('2024-01-01T00:00:00Z'),
+  updatedAt: new Date('2024-01-01T00:00:00Z'),
+  cuisine: { id: 1, name: 'Italian' },
+  ingredients: [],
+  tags: [],
+  steps: [],
+}
+
+const CREATE_RECIPE_INPUT: Parameters<typeof createRecipe>[1] = {
+  name: 'Pasta',
+  description: '',
+  servings: 2,
+  cookingTime: 10,
+  preparationTime: 5,
+  cuisine: { name: 'Italian' },
+  ingredients: [{ name: 'Spaghetti', unitId: 1, quantity: 200 }],
+  steps: [{ stepNumber: 1, description: 'Boil water' }],
+  author: '',
+}
+
+describe('createRecipe', () => {
+  it('inserts null, not undefined, when calories and imageUrl are omitted', async () => {
+    const { db, insertedRecipeValues } = makeCreateDb(CREATE_RECIPE_ROW)
+    await createRecipe(db, CREATE_RECIPE_INPUT)
+    expect(insertedRecipeValues[0].calories).toBeNull()
+    expect(insertedRecipeValues[0].imageUrl).toBeNull()
+  })
+
+  it('passes explicit calories and imageUrl through unchanged', async () => {
+    const { db, insertedRecipeValues } = makeCreateDb(CREATE_RECIPE_ROW)
+    await createRecipe(db, { ...CREATE_RECIPE_INPUT, calories: 450, imageUrl: 'recipes/1.jpg' })
+    expect(insertedRecipeValues[0].calories).toBe(450)
+    expect(insertedRecipeValues[0].imageUrl).toBe('recipes/1.jpg')
   })
 })

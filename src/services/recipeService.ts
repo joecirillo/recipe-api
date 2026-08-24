@@ -280,11 +280,13 @@ export async function createRecipe(db: Db, input: RecipeSaveInput): Promise<Reci
         description: input.description,
         cuisineId: cuisine.id,
         author: input.author,
-        calories: input.calories,
+        // ?? null: the postgres driver rejects `undefined` bind params outright,
+        // so an omitted (as opposed to explicit null) field must be coerced.
+        calories: input.calories ?? null,
         servings: input.servings,
         cookingTime: input.cookingTime,
         preparationTime: input.preparationTime,
-        imageUrl: input.imageUrl,
+        imageUrl: input.imageUrl ?? null,
         createdAt: now,
         updatedAt: now,
       })
