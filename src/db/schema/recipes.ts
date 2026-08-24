@@ -11,7 +11,9 @@ export const recipes = recipeservice.table('recipes', {
   id: bigserial('id', { mode: 'number' }).primaryKey(),
   name: varchar('recipe_name', { length: 255 }).notNull(),
   description: text('description').notNull(),
-  cuisineId: smallint('cuisine_id').notNull().references(() => cuisines.id),
+  cuisineId: smallint('cuisine_id')
+    .notNull()
+    .references(() => cuisines.id),
   author: varchar('author', { length: 255 }).notNull(),
   // Nullable intentionally: DB column is nullable despite Java entity using a primitive short.
   // The issue spec and actual DB state take precedence over the Java source here.

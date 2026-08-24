@@ -54,7 +54,7 @@ describe('GET /ingredients', () => {
   it('returns 200 with all ingredients when no query param', async () => {
     const res = await request('/ingredients', USER_KEY)
     expect(res.status).toBe(200)
-    const body = await res.json() as Record<string, any>
+    const body = (await res.json()) as Record<string, any>
     expect(body.status).toBe(200)
     expect(body.message).toBe('Ingredients retrieved')
     expect(body.data).toEqual(SAMPLE_INGREDIENTS)
@@ -64,7 +64,7 @@ describe('GET /ingredients', () => {
   it('returns all ingredients for empty query string', async () => {
     const res = await request('/ingredients?query=', USER_KEY)
     expect(res.status).toBe(200)
-    const body = await res.json() as Record<string, any>
+    const body = (await res.json()) as Record<string, any>
     expect(body.message).toBe('Ingredients retrieved')
     expect(vi.mocked(ingredientService.listIngredients)).toHaveBeenCalledOnce()
     expect(vi.mocked(ingredientService.searchIngredients)).not.toHaveBeenCalled()
@@ -73,7 +73,7 @@ describe('GET /ingredients', () => {
   it('returns all ingredients for whitespace-only query', async () => {
     const res = await request('/ingredients?query=   ', USER_KEY)
     expect(res.status).toBe(200)
-    const body = await res.json() as Record<string, any>
+    const body = (await res.json()) as Record<string, any>
     expect(body.message).toBe('Ingredients retrieved')
     expect(vi.mocked(ingredientService.listIngredients)).toHaveBeenCalledOnce()
     expect(vi.mocked(ingredientService.searchIngredients)).not.toHaveBeenCalled()
@@ -83,7 +83,7 @@ describe('GET /ingredients', () => {
     vi.mocked(ingredientService.searchIngredients).mockResolvedValue([{ id: 1, name: 'Garlic' }])
     const res = await request('/ingredients?query=gar', USER_KEY)
     expect(res.status).toBe(200)
-    const body = await res.json() as Record<string, any>
+    const body = (await res.json()) as Record<string, any>
     expect(body.message).toBe('Ingredients queried')
     expect(body.data).toEqual([{ id: 1, name: 'Garlic' }])
     expect(vi.mocked(ingredientService.searchIngredients)).toHaveBeenCalledWith(
@@ -97,7 +97,7 @@ describe('GET /ingredients', () => {
     vi.mocked(ingredientService.searchIngredients).mockResolvedValue([])
     const res = await request('/ingredients?query=zzz', USER_KEY)
     expect(res.status).toBe(200)
-    const body = await res.json() as Record<string, any>
+    const body = (await res.json()) as Record<string, any>
     expect(body.message).toBe('Ingredients queried')
     expect(body.data).toEqual([])
   })

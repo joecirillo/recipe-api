@@ -10,9 +10,15 @@ export const recipeIngredients = recipeservice.table(
   'recipe_ingredients',
   {
     id: bigserial('recipe_ingredient_id', { mode: 'number' }).primaryKey(),
-    recipeId: bigint('recipe_id', { mode: 'number' }).notNull().references(() => recipes.id, { onDelete: 'cascade' }),
-    ingredientId: bigint('ingredient_id', { mode: 'number' }).notNull().references(() => ingredients.id),
-    unitId: bigint('unit_id', { mode: 'number' }).notNull().references(() => units.id),
+    recipeId: bigint('recipe_id', { mode: 'number' })
+      .notNull()
+      .references(() => recipes.id, { onDelete: 'cascade' }),
+    ingredientId: bigint('ingredient_id', { mode: 'number' })
+      .notNull()
+      .references(() => ingredients.id),
+    unitId: bigint('unit_id', { mode: 'number' })
+      .notNull()
+      .references(() => units.id),
     quantity: numeric('quantity', { precision: 8, scale: 2 }).notNull(),
     notes: varchar('notes', { length: 255 }),
   },

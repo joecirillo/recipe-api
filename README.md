@@ -14,14 +14,14 @@ Requests are rate limited to **60 per minute per API key**. Exceeding the limit 
 
 All variables are injected at runtime via Cloudflare secrets (production) or `.dev.vars` (local).
 
-| Variable                | Description                                                     |
-| ----------------------- | ---------------------------------------------------------------- |
-| `DATABASE_URL`          | Postgres **direct** connection string (Supabase, port 5432) — used only by `drizzle-kit` migrations, which run outside the Worker and can't use the `HYPERDRIVE` binding |
-| `USER_API_KEY`          | API key for standard access (`X-Api-Key` header)                 |
-| `ADMIN_API_KEY`         | API key for admin routes (e.g. `DELETE /recipes/:id`)            |
-| `R2_ACCOUNT_ID`         | Cloudflare account ID — used to build the R2 S3-compatible endpoint |
-| `R2_ACCESS_KEY_ID`      | R2 API token access key ID, scoped to the `recipe-images` bucket |
-| `R2_SECRET_ACCESS_KEY`  | R2 API token secret access key                                   |
+| Variable               | Description                                                                                                                                                              |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `DATABASE_URL`         | Postgres **direct** connection string (Supabase, port 5432) — used only by `drizzle-kit` migrations, which run outside the Worker and can't use the `HYPERDRIVE` binding |
+| `USER_API_KEY`         | API key for standard access (`X-Api-Key` header)                                                                                                                         |
+| `ADMIN_API_KEY`        | API key for admin routes (e.g. `DELETE /recipes/:id`)                                                                                                                    |
+| `R2_ACCOUNT_ID`        | Cloudflare account ID — used to build the R2 S3-compatible endpoint                                                                                                      |
+| `R2_ACCESS_KEY_ID`     | R2 API token access key ID, scoped to the `recipe-images` bucket                                                                                                         |
+| `R2_SECRET_ACCESS_KEY` | R2 API token secret access key                                                                                                                                           |
 
 `R2_PUBLIC_URL`, `R2_BUCKET_NAME`, and `IMAGE_BUCKET` are configured in `wrangler.jsonc` and do not
 need to be set as secrets.
@@ -63,8 +63,7 @@ The Worker itself queries Postgres through a [Hyperdrive](https://developers.clo
 binding (`HYPERDRIVE`), not `DATABASE_URL` directly — Hyperdrive keeps a warm connection pool near
 Supabase so requests don't pay a full TCP+TLS+auth handshake on every invocation.
 
-Both `DATABASE_URL` and the Hyperdrive config must point at Supabase's **direct connection (port
-5432)**, not the Supavisor pooler (port 6543). Supavisor runs in transaction-pooling mode, which
+Both `DATABASE_URL` and the Hyperdrive config must point at Supabase's **direct connection (port 5432)**, not the Supavisor pooler (port 6543). Supavisor runs in transaction-pooling mode, which
 doesn't support prepared statements — routing Hyperdrive through it would reintroduce that
 constraint on top of Hyperdrive's own pooling. Supabase's direct connection defaults to IPv6; if
 Hyperdrive's egress can't reach it, Supabase's IPv4 add-on (Pro plan+) provides a static IPv4
