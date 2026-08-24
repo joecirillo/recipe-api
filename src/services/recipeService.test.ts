@@ -1,5 +1,19 @@
 import { describe, expect, it, vi } from 'vitest'
-import { listRecipes, searchRecipes } from './recipeService'
+import { createRecipe, listRecipes, searchRecipes, updateRecipe } from './recipeService'
+import { recipeIngredients, recipeInstructionSteps, recipes } from '../db/schema'
+
+vi.mock('./cuisine-service', () => ({
+  resolveCuisine: vi.fn().mockResolvedValue({ id: 1, name: 'Italian' }),
+}))
+vi.mock('./ingredient-service', () => ({
+  resolveIngredient: vi.fn().mockResolvedValue({ id: 10, name: 'Spaghetti' }),
+}))
+vi.mock('./unit-service', () => ({
+  resolveUnit: vi.fn().mockResolvedValue({ id: 1, name: 'Gram', abbreviation: 'g' }),
+}))
+vi.mock('./tag-service', () => ({
+  resolveTag: vi.fn().mockResolvedValue({ id: 5, name: 'Quick' }),
+}))
 
 function makeDb(rows: { id: number; name: string; imageUrl: string | null }[]) {
   const chain = {
@@ -167,5 +181,121 @@ describe('listRecipes', () => {
     await listRecipes(db, 2, 999)
     expect(chain.limit).toHaveBeenCalledWith(100)
     expect(chain.offset).toHaveBeenCalledWith(200)
+  })
+})
+
+// The real postgres driver throws on `undefined` bind params (only `null` is a valid SQL
+// NULL). rejectUndefined below simulates that so any insert/update `.values()`/`.set()`
+// call touching an omitted optional field fails the test the same way it would in
+// production, rather than silently passing like a plain mock would.
+function rejectUndefined(vals: Record<string, unknown>) {
+  for (const [key, value] of Object.entries(vals)) {
+    if (value === undefined) {
+      throw new Error(`Undefined values are not allowed (column "${key}")`)
+    }
+  }
+}
+
+function makeRecipeDb(finalRow: { id: number; [key: string]: unknown }) {
+  const insertedValues: { table: unknown; vals: Record<string, unknown> }[] = []
+  const tx = {
+    insert: vi.fn((table: unknown) => ({
+      values: vi.fn((vals: Record<string, unknown>) => {
+        rejectUndefined(vals)
+        insertedValues.push({ table, vals })
+        if (table === recipes) {
+          return { returning: vi.fn().mockResolvedValue([{ id: finalRow.id }]) }
+        }
+        return Promise.resolve(undefined)
+      }),
+    })),
+    update: vi.fn(() => ({
+      set: vi.fn((vals: Record<string, unknown>) => {
+        rejectUndefined(vals)
+        return { where: vi.fn().mockResolvedValue(undefined) }
+      }),
+    })),
+    delete: vi.fn(() => ({ where: vi.fn().mockResolvedValue(undefined) })),
+    query: { recipes: { findFirst: vi.fn().mockResolvedValue(finalRow) } },
+  }
+  const db = {
+    transaction: vi.fn((cb: (tx: unknown) => Promise<unknown>) => cb(tx)),
+    query: { recipes: { findFirst: vi.fn().mockResolvedValue(finalRow) } },
+  } as unknown as Parameters<typeof createRecipe>[0] & Parameters<typeof updateRecipe>[1]
+  return { db, insertedValues }
+}
+
+function valuesFor(insertedValues: { table: unknown; vals: Record<string, unknown> }[], table: unknown) {
+  return insertedValues.filter((v) => v.table === table).map((v) => v.vals)
+}
+
+const RECIPE_ROW = {
+  id: 1,
+  name: 'Pasta',
+  description: '',
+  author: '',
+  calories: null,
+  servings: 2,
+  cookingTime: 10,
+  preparationTime: 5,
+  imageUrl: null,
+  createdAt: new Date('2024-01-01T00:00:00Z'),
+  updatedAt: new Date('2024-01-01T00:00:00Z'),
+  cuisine: { id: 1, name: 'Italian' },
+  ingredients: [],
+  tags: [],
+  steps: [],
+}
+
+const CREATE_RECIPE_INPUT: Parameters<typeof createRecipe>[1] = {
+  name: 'Pasta',
+  description: '',
+  servings: 2,
+  cookingTime: 10,
+  preparationTime: 5,
+  cuisine: { name: 'Italian' },
+  ingredients: [{ name: 'Spaghetti', unitId: 1, quantity: 200 }],
+  steps: [{ stepNumber: 1, description: 'Boil water' }],
+  author: '',
+}
+
+describe('createRecipe', () => {
+  it('inserts null, not undefined, when calories and imageUrl are omitted', async () => {
+    const { db, insertedValues } = makeRecipeDb(RECIPE_ROW)
+    await createRecipe(db, CREATE_RECIPE_INPUT)
+    const [recipeValues] = valuesFor(insertedValues, recipes)
+    expect(recipeValues.calories).toBeNull()
+    expect(recipeValues.imageUrl).toBeNull()
+  })
+
+  it('passes explicit calories and imageUrl through unchanged', async () => {
+    const { db, insertedValues } = makeRecipeDb(RECIPE_ROW)
+    await createRecipe(db, { ...CREATE_RECIPE_INPUT, calories: 450, imageUrl: 'recipes/1.jpg' })
+    const [recipeValues] = valuesFor(insertedValues, recipes)
+    expect(recipeValues.calories).toBe(450)
+    expect(recipeValues.imageUrl).toBe('recipes/1.jpg')
+  })
+
+  it('inserts null, not undefined, when ingredient notes and step tip are omitted', async () => {
+    const { db, insertedValues } = makeRecipeDb(RECIPE_ROW)
+    await createRecipe(db, CREATE_RECIPE_INPUT)
+    const [ingredientValues] = valuesFor(insertedValues, recipeIngredients)
+    const [stepValues] = valuesFor(insertedValues, recipeInstructionSteps)
+    expect(ingredientValues.notes).toBeNull()
+    expect(stepValues.tip).toBeNull()
+  })
+})
+
+describe('updateRecipe', () => {
+  it('inserts null, not undefined, when ingredient notes and step tip are omitted', async () => {
+    const { db, insertedValues } = makeRecipeDb(RECIPE_ROW)
+    await updateRecipe(db, 1, {
+      ingredients: [{ name: 'Spaghetti', unitId: 1, quantity: 200 }],
+      steps: [{ stepNumber: 1, description: 'Boil water' }],
+    })
+    const [ingredientValues] = valuesFor(insertedValues, recipeIngredients)
+    const [stepValues] = valuesFor(insertedValues, recipeInstructionSteps)
+    expect(ingredientValues.notes).toBeNull()
+    expect(stepValues.tip).toBeNull()
   })
 })

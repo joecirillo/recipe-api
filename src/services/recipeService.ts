@@ -280,11 +280,15 @@ export async function createRecipe(db: Db, input: RecipeSaveInput): Promise<Reci
         description: input.description,
         cuisineId: cuisine.id,
         author: input.author,
-        calories: input.calories,
+        // ?? null on every nullable optional field below: the postgres driver rejects
+        // `undefined` bind params outright, so an omitted field must be coerced. Applies
+        // wherever an insert takes a nullable-no-default column straight from input
+        // (see also notes/tip in the ingredient/step inserts further down).
+        calories: input.calories ?? null,
         servings: input.servings,
         cookingTime: input.cookingTime,
         preparationTime: input.preparationTime,
-        imageUrl: input.imageUrl,
+        imageUrl: input.imageUrl ?? null,
         createdAt: now,
         updatedAt: now,
       })
@@ -300,7 +304,7 @@ export async function createRecipe(db: Db, input: RecipeSaveInput): Promise<Reci
         ingredientId: ingredient.id,
         unitId: unit.id,
         quantity: String(ing.quantity),
-        notes: ing.notes,
+        notes: ing.notes ?? null,
       })
     }
 
@@ -313,7 +317,7 @@ export async function createRecipe(db: Db, input: RecipeSaveInput): Promise<Reci
         recipeId: recipe.id,
         stepNumber: step.stepNumber,
         description: step.description,
-        tip: step.tip,
+        tip: step.tip ?? null,
       })
     }
 
@@ -368,7 +372,7 @@ export async function updateRecipe(
           ingredientId: ingredient.id,
           unitId: unit.id,
           quantity: String(ing.quantity),
-          notes: ing.notes,
+          notes: ing.notes ?? null,
         })
       }
     }
@@ -388,7 +392,7 @@ export async function updateRecipe(
           recipeId: id,
           stepNumber: step.stepNumber,
           description: step.description,
-          tip: step.tip,
+          tip: step.tip ?? null,
         })
       }
     }
