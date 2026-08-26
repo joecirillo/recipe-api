@@ -54,7 +54,7 @@ describe('GET /tags', () => {
   it('returns 200 with all tags when no query param', async () => {
     const res = await request('/tags', USER_KEY)
     expect(res.status).toBe(200)
-    const body = await res.json() as Record<string, any>
+    const body = (await res.json()) as Record<string, any>
     expect(body.status).toBe(200)
     expect(body.message).toBe('Tags retrieved')
     expect(body.data).toEqual(SAMPLE_TAGS)
@@ -64,7 +64,7 @@ describe('GET /tags', () => {
   it('returns all tags for empty query string', async () => {
     const res = await request('/tags?query=', USER_KEY)
     expect(res.status).toBe(200)
-    const body = await res.json() as Record<string, any>
+    const body = (await res.json()) as Record<string, any>
     expect(body.message).toBe('Tags retrieved')
     expect(vi.mocked(tagService.listTags)).toHaveBeenCalledOnce()
     expect(vi.mocked(tagService.searchTags)).not.toHaveBeenCalled()
@@ -73,7 +73,7 @@ describe('GET /tags', () => {
   it('returns all tags for whitespace-only query', async () => {
     const res = await request('/tags?query=   ', USER_KEY)
     expect(res.status).toBe(200)
-    const body = await res.json() as Record<string, any>
+    const body = (await res.json()) as Record<string, any>
     expect(body.message).toBe('Tags retrieved')
     expect(vi.mocked(tagService.listTags)).toHaveBeenCalledOnce()
     expect(vi.mocked(tagService.searchTags)).not.toHaveBeenCalled()
@@ -83,7 +83,7 @@ describe('GET /tags', () => {
     vi.mocked(tagService.searchTags).mockResolvedValue([{ id: 1, name: 'Vegan' }])
     const res = await request('/tags?query=veg', USER_KEY)
     expect(res.status).toBe(200)
-    const body = await res.json() as Record<string, any>
+    const body = (await res.json()) as Record<string, any>
     expect(body.message).toBe('Tags queried')
     expect(body.data).toEqual([{ id: 1, name: 'Vegan' }])
     expect(vi.mocked(tagService.searchTags)).toHaveBeenCalledWith(expect.anything(), 'veg')
@@ -94,7 +94,7 @@ describe('GET /tags', () => {
     vi.mocked(tagService.searchTags).mockResolvedValue([])
     const res = await request('/tags?query=zzz', USER_KEY)
     expect(res.status).toBe(200)
-    const body = await res.json() as Record<string, any>
+    const body = (await res.json()) as Record<string, any>
     expect(body.message).toBe('Tags queried')
     expect(body.data).toEqual([])
   })

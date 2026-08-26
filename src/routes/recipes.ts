@@ -128,7 +128,15 @@ recipeRouter.get('/', async (c) => {
     ingredientId !== undefined
 
   if (hasFilter) {
-    const data = await searchRecipes(db, { name, tag, cuisine, ingredient, tagId, cuisineId, ingredientId })
+    const data = await searchRecipes(db, {
+      name,
+      tag,
+      cuisine,
+      ingredient,
+      tagId,
+      cuisineId,
+      ingredientId,
+    })
     return c.json(
       buildSuccess(
         200,
@@ -161,9 +169,13 @@ recipeRouter.post('/', requestLogger('recipe upload'), async (c) => {
   const input = RecipeSaveSchema.parse(body)
   if (input.imageUrl) input.imageUrl = toStorageKey(input.imageUrl, c.env.R2_PUBLIC_URL)
   const data = await createRecipe(db, input)
-  return c.json(buildSuccess(201, 'Recipe saved', withPublicImageUrl(data, c.env.R2_PUBLIC_URL)), 201, {
-    Location: `/recipes/${data.id}`,
-  })
+  return c.json(
+    buildSuccess(201, 'Recipe saved', withPublicImageUrl(data, c.env.R2_PUBLIC_URL)),
+    201,
+    {
+      Location: `/recipes/${data.id}`,
+    },
+  )
 })
 
 recipeRouter.get('/:id', async (c) => {
@@ -171,7 +183,10 @@ recipeRouter.get('/:id', async (c) => {
   if (isNaN(id)) throw new BadRequestError('Invalid recipe id')
   const db = createDb(c.env.HYPERDRIVE.connectionString)
   const data = await getRecipe(db, id)
-  return c.json(buildSuccess(200, 'Recipe retrieved', withPublicImageUrl(data, c.env.R2_PUBLIC_URL)), 200)
+  return c.json(
+    buildSuccess(200, 'Recipe retrieved', withPublicImageUrl(data, c.env.R2_PUBLIC_URL)),
+    200,
+  )
 })
 
 recipeRouter.patch('/:id', requestLogger('recipe save'), async (c) => {
@@ -182,7 +197,10 @@ recipeRouter.patch('/:id', requestLogger('recipe save'), async (c) => {
   const input = RecipeUpdateSchema.parse(body)
   if (input.imageUrl) input.imageUrl = toStorageKey(input.imageUrl, c.env.R2_PUBLIC_URL)
   const data = await updateRecipe(db, id, input)
-  return c.json(buildSuccess(200, 'Recipe updated', withPublicImageUrl(data, c.env.R2_PUBLIC_URL)), 200)
+  return c.json(
+    buildSuccess(200, 'Recipe updated', withPublicImageUrl(data, c.env.R2_PUBLIC_URL)),
+    200,
+  )
 })
 
 recipeRouter.delete('/:id', async (c) => {

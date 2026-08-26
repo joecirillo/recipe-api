@@ -54,7 +54,7 @@ describe('GET /units', () => {
   it('returns 200 with all units', async () => {
     const res = await request('/units', USER_KEY)
     expect(res.status).toBe(200)
-    const body = await res.json() as Record<string, any>
+    const body = (await res.json()) as Record<string, any>
     expect(body.status).toBe(200)
     expect(body.message).toBe('Units retrieved')
     expect(body.data).toEqual(SAMPLE_UNITS)
@@ -63,7 +63,7 @@ describe('GET /units', () => {
 
   it('includes null abbreviation in response', async () => {
     const res = await request('/units', USER_KEY)
-    const body = await res.json() as Record<string, any>
+    const body = (await res.json()) as Record<string, any>
     const piece = body.data.find((u: { id: number }) => u.id === 3)
     expect(piece.abbreviation).toBeNull()
   })

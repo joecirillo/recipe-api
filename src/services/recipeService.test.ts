@@ -225,7 +225,10 @@ function makeRecipeDb(finalRow: { id: number; [key: string]: unknown }) {
   return { db, insertedValues }
 }
 
-function valuesFor(insertedValues: { table: unknown; vals: Record<string, unknown> }[], table: unknown) {
+function valuesFor(
+  insertedValues: { table: unknown; vals: Record<string, unknown> }[],
+  table: unknown,
+) {
   return insertedValues.filter((v) => v.table === table).map((v) => v.vals)
 }
 

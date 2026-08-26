@@ -8,7 +8,9 @@ export const recipeInstructionSteps = recipeservice.table(
   'recipe_instruction_steps',
   {
     id: bigserial('step_id', { mode: 'number' }).primaryKey(),
-    recipeId: bigint('recipe_id', { mode: 'number' }).notNull().references(() => recipes.id, { onDelete: 'cascade' }),
+    recipeId: bigint('recipe_id', { mode: 'number' })
+      .notNull()
+      .references(() => recipes.id, { onDelete: 'cascade' }),
     stepNumber: smallint('step_number').notNull(),
     description: text('description').notNull(),
     imageUrl: varchar('image_url', { length: 255 }),

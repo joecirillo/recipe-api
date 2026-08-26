@@ -9,8 +9,12 @@ export const recipeTags = recipeservice.table(
   'recipe_tags',
   {
     id: bigserial('recipe_tag_id', { mode: 'number' }).primaryKey(),
-    recipeId: bigint('recipe_id', { mode: 'number' }).notNull().references(() => recipes.id, { onDelete: 'cascade' }),
-    tagId: bigint('tag_id', { mode: 'number' }).notNull().references(() => tags.id),
+    recipeId: bigint('recipe_id', { mode: 'number' })
+      .notNull()
+      .references(() => recipes.id, { onDelete: 'cascade' }),
+    tagId: bigint('tag_id', { mode: 'number' })
+      .notNull()
+      .references(() => tags.id),
   },
   (t) => [unique().on(t.recipeId, t.tagId)],
 )

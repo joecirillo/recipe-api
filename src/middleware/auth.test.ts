@@ -44,7 +44,7 @@ describe('authMiddleware', () => {
 
     it('returns the standard error envelope', async () => {
       const res = await request('GET', '/recipes')
-      const body = await res.json() as Record<string, any>
+      const body = (await res.json()) as Record<string, any>
       expect(body.status).toBe(401)
       expect(body.message).toBe('Invalid or missing API key')
       expect(body.path).toBe('/recipes')
@@ -104,7 +104,7 @@ describe('authMiddleware', () => {
 
     it('returns the standard error envelope when rejecting user key', async () => {
       const res = await request('DELETE', '/recipes/123', USER_KEY)
-      const body = await res.json() as Record<string, any>
+      const body = (await res.json()) as Record<string, any>
       expect(body.status).toBe(401)
       expect(body.message).toBe('Invalid or missing API key')
       expect(body.path).toBe('/recipes/123')

@@ -195,10 +195,7 @@ export async function listRecipes(db: Db, page: number, limit: number): Promise<
   return rows.map((r) => ({ id: r.id, name: r.name, imageUrl: r.imageUrl ?? null }))
 }
 
-export async function searchRecipes(
-  db: Db,
-  params: RecipeSearchParams,
-): Promise<RecipeListItem[]> {
+export async function searchRecipes(db: Db, params: RecipeSearchParams): Promise<RecipeListItem[]> {
   const conditions: SQL[] = []
 
   // Mirror RecipeSpecification.buildFrom: trim each text param and skip if blank.

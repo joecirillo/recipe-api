@@ -32,9 +32,7 @@ describe('toPublicUrl', () => {
   })
 
   it('prefixes a bare key with the public URL', () => {
-    expect(toPublicUrl('recipes/abc-123.jpg', PUBLIC_URL)).toBe(
-      `${PUBLIC_URL}/recipes/abc-123.jpg`,
-    )
+    expect(toPublicUrl('recipes/abc-123.jpg', PUBLIC_URL)).toBe(`${PUBLIC_URL}/recipes/abc-123.jpg`)
   })
 
   it('strips a trailing slash from publicUrl before prefixing', () => {

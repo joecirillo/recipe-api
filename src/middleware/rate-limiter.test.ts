@@ -52,7 +52,7 @@ describe('rateLimiterMiddleware', () => {
       await request(app, USER_KEY)
     }
     const res = await request(app, USER_KEY)
-    const body = await res.json() as Record<string, any>
+    const body = (await res.json()) as Record<string, any>
     expect(body.status).toBe(429)
     expect(body.message).toBe('Rate limit exceeded')
     expect(body.path).toBe('/recipes')
