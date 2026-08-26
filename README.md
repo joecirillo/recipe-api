@@ -102,7 +102,7 @@ Set these as [GitHub Actions repository secrets](https://github.com/settings/sec
 `wrangler.jsonc` — the account ID is treated as sensitive alongside the API token.
 
 | Secret                  | Description                                                          |
-| ----------------------- | ---------------------------------------------------------------------- |
+| ----------------------- | -------------------------------------------------------------------- |
 | `CLOUDFLARE_API_TOKEN`  | Token with `Workers Scripts:Edit` permission, scoped to this account |
 | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare account ID the Worker deploys to                          |
 
