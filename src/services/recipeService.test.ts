@@ -198,6 +198,7 @@ function rejectUndefined(vals: Record<string, unknown>) {
 
 function makeRecipeDb(finalRow: { id: number; [key: string]: unknown }) {
   const insertedValues: { table: unknown; vals: Record<string, unknown> }[] = []
+  const updatedValues: Record<string, unknown>[] = []
   const tx = {
     insert: vi.fn((table: unknown) => ({
       values: vi.fn((vals: Record<string, unknown>) => {
@@ -212,6 +213,7 @@ function makeRecipeDb(finalRow: { id: number; [key: string]: unknown }) {
     update: vi.fn(() => ({
       set: vi.fn((vals: Record<string, unknown>) => {
         rejectUndefined(vals)
+        updatedValues.push(vals)
         return { where: vi.fn().mockResolvedValue(undefined) }
       }),
     })),
@@ -222,7 +224,7 @@ function makeRecipeDb(finalRow: { id: number; [key: string]: unknown }) {
     transaction: vi.fn((cb: (tx: unknown) => Promise<unknown>) => cb(tx)),
     query: { recipes: { findFirst: vi.fn().mockResolvedValue(finalRow) } },
   } as unknown as Parameters<typeof createRecipe>[0] & Parameters<typeof updateRecipe>[1]
-  return { db, insertedValues }
+  return { db, insertedValues, updatedValues }
 }
 
 function valuesFor(
@@ -287,6 +289,13 @@ describe('createRecipe', () => {
     expect(ingredientValues.notes).toBeNull()
     expect(stepValues.tip).toBeNull()
   })
+
+  it('normalizes the recipe name to title case', async () => {
+    const { db, insertedValues } = makeRecipeDb(RECIPE_ROW)
+    await createRecipe(db, { ...CREATE_RECIPE_INPUT, name: 'creamy TOMATO soup' })
+    const [recipeValues] = valuesFor(insertedValues, recipes)
+    expect(recipeValues.name).toBe('Creamy Tomato Soup')
+  })
 })
 
 describe('updateRecipe', () => {
@@ -300,5 +309,11 @@ describe('updateRecipe', () => {
     const [stepValues] = valuesFor(insertedValues, recipeInstructionSteps)
     expect(ingredientValues.notes).toBeNull()
     expect(stepValues.tip).toBeNull()
+  })
+
+  it('normalizes the recipe name to title case when present', async () => {
+    const { db, updatedValues } = makeRecipeDb(RECIPE_ROW)
+    await updateRecipe(db, 1, { name: 'creamy TOMATO soup' })
+    expect(updatedValues[0].name).toBe('Creamy Tomato Soup')
   })
 })

@@ -2,6 +2,7 @@ import { eq, ilike } from 'drizzle-orm'
 import { createDb } from '../db/client'
 import { ingredients, type Ingredient } from '../db/schema/ingredients'
 import { BadRequestError, NotFoundError } from '../errors'
+import { toTitleCase } from '../lib/text'
 import type { NamedEntityResponse } from '../lib/types'
 
 type Db = ReturnType<typeof createDb>
@@ -44,7 +45,7 @@ export async function resolveIngredient(
   // ingredient_name is never updated after insertion — this is the only place it is written
   const [inserted] = await db
     .insert(ingredients)
-    .values({ name: name! })
+    .values({ name: toTitleCase(name!) })
     .onConflictDoNothing({ target: ingredients.name })
     .returning()
   if (inserted) return inserted

@@ -10,6 +10,7 @@ import {
   tags,
 } from '../db/schema'
 import { NotFoundError } from '../errors'
+import { toTitleCase } from '../lib/text'
 import { resolveCuisine } from './cuisine-service'
 import { resolveIngredient } from './ingredient-service'
 import { resolveTag } from './tag-service'
@@ -273,7 +274,7 @@ export async function createRecipe(db: Db, input: RecipeSaveInput): Promise<Reci
     const [recipe] = await tx
       .insert(recipes)
       .values({
-        name: input.name,
+        name: toTitleCase(input.name),
         description: input.description,
         cuisineId: cuisine.id,
         author: input.author,
@@ -341,7 +342,7 @@ export async function updateRecipe(
     // nullable columns (calories, imageUrl). Non-nullable columns cannot be set to null.
     const patch: Record<string, unknown> = { updatedAt: new Date() }
 
-    if (input.name !== undefined) patch.name = input.name
+    if (input.name !== undefined) patch.name = toTitleCase(input.name)
     if (input.description !== undefined) patch.description = input.description
     if (input.author !== undefined) patch.author = input.author
     if (input.calories !== undefined) patch.calories = input.calories
