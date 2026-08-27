@@ -11,21 +11,7 @@ redesign — when in doubt about behavior, defer to the source repo, not intuiti
 - Zod (request validation)
 - Node.js (runtime)
 
-## Source of truth for migration
-
-The old service lives at `../recipe-service` (Spring Boot). When implementing or
-reviewing any resource, read the equivalent files there first:
-
-- `controller/` → route definitions and HTTP contract (status codes, params)
-- `entity/` → Drizzle schema fields, types, relations
-- `dto/` + `mapper/` → request/response shape, what's included/excluded on partial updates
-- `service/` → business logic, edge cases
-- `specification/` → dynamic filtering — port to Drizzle's query builder, don't reinvent it
-- `repository/` → query patterns worth preserving
-
-Do not guess at validation rules or edge cases that exist in the Java code — read them.
-
-## Resources (from recipe-service controllers)
+## Resources
 
 Recipe, Cuisine, Ingredient, Tag, Unit, Image. Recipe is the core entity with
 relations to the others; Cuisine/Ingredient/Tag/Unit are simpler reference tables —
