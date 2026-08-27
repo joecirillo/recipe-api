@@ -338,6 +338,48 @@ describe('POST /recipes', () => {
     )
   })
 
+  it('normalizes recipe, cuisine, and ingredient names to title case', async () => {
+    const res = await request('/recipes', {
+      method: 'POST',
+      body: {
+        ...SAVE_BODY,
+        name: 'spaghetti BOLOGNESE',
+        cuisine: { name: 'ITALIAN' },
+        ingredients: [{ name: 'ground beef', unitId: 1, quantity: 200 }],
+      },
+    })
+    expect(res.status).toBe(201)
+    expect(vi.mocked(recipeService.createRecipe)).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        name: 'Spaghetti Bolognese',
+        cuisine: { name: 'Italian' },
+        ingredients: [expect.objectContaining({ name: 'Ground Beef' })],
+      }),
+    )
+  })
+
+  it('trims surrounding whitespace before title-casing names', async () => {
+    const res = await request('/recipes', {
+      method: 'POST',
+      body: {
+        ...SAVE_BODY,
+        name: '  spaghetti bolognese  ',
+        cuisine: { name: ' italian ' },
+        ingredients: [{ name: ' ground beef ', unitId: 1, quantity: 200 }],
+      },
+    })
+    expect(res.status).toBe(201)
+    expect(vi.mocked(recipeService.createRecipe)).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        name: 'Spaghetti Bolognese',
+        cuisine: { name: 'Italian' },
+        ingredients: [expect.objectContaining({ name: 'Ground Beef' })],
+      }),
+    )
+  })
+
   it('returns 400 when name is too short', async () => {
     const res = await request('/recipes', {
       method: 'POST',
@@ -520,6 +562,26 @@ describe('PATCH /recipes/:id', () => {
     const res = await request('/recipes/1', { method: 'PATCH', body: { ingredients: [] } })
     expect(res.status).toBe(400)
     expect(vi.mocked(recipeService.updateRecipe)).not.toHaveBeenCalled()
+  })
+
+  it('normalizes an updated name to title case', async () => {
+    vi.mocked(recipeService.updateRecipe).mockResolvedValue(FULL_RECIPE)
+    await request('/recipes/1', { method: 'PATCH', body: { name: 'updated PASTA' } })
+    expect(vi.mocked(recipeService.updateRecipe)).toHaveBeenCalledWith(
+      expect.anything(),
+      1,
+      expect.objectContaining({ name: 'Updated Pasta' }),
+    )
+  })
+
+  it('leaves name untouched when omitted from the patch', async () => {
+    vi.mocked(recipeService.updateRecipe).mockResolvedValue(FULL_RECIPE)
+    await request('/recipes/1', { method: 'PATCH', body: { calories: 500 } })
+    expect(vi.mocked(recipeService.updateRecipe)).toHaveBeenCalledWith(
+      expect.anything(),
+      1,
+      expect.not.objectContaining({ name: expect.anything() }),
+    )
   })
 
   it('accepts explicit null id on cuisine, ingredients, and tags', async () => {

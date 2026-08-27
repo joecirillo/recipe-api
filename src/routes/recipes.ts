@@ -4,6 +4,7 @@ import { createDb } from '../db/client'
 import { buildSuccess } from '../lib/response'
 import { BadRequestError } from '../errors'
 import { toStorageKey, withPublicImageUrl } from '../lib/image-url'
+import { toTitleCase } from '../lib/text'
 import { requestLogger } from '../middleware/request-logger'
 import {
   createRecipe,
@@ -19,7 +20,10 @@ export const recipeRouter = new Hono<{ Bindings: CloudflareBindings }>()
 const CuisineInputSchema = z
   .object({
     id: z.number().int().positive().nullish(),
-    name: z.string().optional(),
+    name: z
+      .string()
+      .transform((v) => toTitleCase(v.trim()))
+      .optional(),
   })
   .refine((c) => c.id != null || (c.name?.trim().length ?? 0) > 0, {
     message: 'Cuisine request must have either an ID or a name.',
@@ -28,7 +32,10 @@ const CuisineInputSchema = z
 const IngredientInputSchema = z
   .object({
     id: z.number().int().positive().nullish(),
-    name: z.string().optional(),
+    name: z
+      .string()
+      .transform((v) => toTitleCase(v.trim()))
+      .optional(),
     unitId: z.number().int().positive(),
     quantity: z.number().positive(),
     notes: z.string().nullish(),
@@ -37,6 +44,8 @@ const IngredientInputSchema = z
     message: 'Ingredient request must have either an ID or a name.',
   })
 
+// name is intentionally left as-is here — tags are out of scope for title-case
+// normalization (#54), unlike Cuisine/Ingredient name above.
 const TagInputSchema = z
   .object({
     id: z.number().int().positive().nullish(),
@@ -58,7 +67,8 @@ const RecipeSaveSchema = z.object({
   name: z
     .string()
     .min(2, 'Recipe name must be between 2 to 150 characters.')
-    .max(150, 'Recipe name must be between 2 to 150 characters.'),
+    .max(150, 'Recipe name must be between 2 to 150 characters.')
+    .transform((v) => toTitleCase(v.trim())),
   description: z.string().default(''),
   calories: z.number().int().min(0).max(32767).nullable().optional(),
   servings: z.number().int().positive('Servings must be a more than zero.').max(32767),
@@ -77,6 +87,7 @@ const RecipeUpdateSchema = z.object({
     .string()
     .min(2, 'Recipe name must be between 2 to 150 characters.')
     .max(150, 'Recipe name must be between 2 to 150 characters.')
+    .transform((v) => toTitleCase(v.trim()))
     .optional(),
   description: z.string().optional(),
   calories: z.number().int().min(0).max(32767).nullable().optional(),
