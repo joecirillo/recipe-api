@@ -2,6 +2,7 @@ import { eq, ilike } from 'drizzle-orm'
 import { createDb } from '../db/client'
 import { cuisines, type Cuisine } from '../db/schema/cuisines'
 import { BadRequestError, NotFoundError } from '../errors'
+import { toTitleCase } from '../lib/text'
 import type { NamedEntityResponse } from '../lib/types'
 
 type Db = ReturnType<typeof createDb>
@@ -39,7 +40,7 @@ export async function resolveCuisine(db: Db, id?: number | null, name?: string):
 
   const [inserted] = await db
     .insert(cuisines)
-    .values({ name: name! })
+    .values({ name: toTitleCase(name!) })
     .onConflictDoNothing({ target: cuisines.name })
     .returning()
   if (inserted) return inserted
