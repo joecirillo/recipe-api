@@ -15,9 +15,7 @@ export const recipes = recipeservice.table('recipes', {
     .notNull()
     .references(() => cuisines.id),
   author: varchar('author', { length: 255 }).notNull(),
-  // Nullable intentionally: DB column is nullable despite Java entity using a primitive short.
-  // The issue spec and actual DB state take precedence over the Java source here.
-  calories: smallint('calories'),
+  calories: smallint('calories').notNull(),
   servings: smallint('servings').notNull(),
   cookingTime: smallint('cooking_time').notNull(),
   preparationTime: smallint('preparation_time').notNull(),

@@ -59,8 +59,8 @@ const RecipeSaveSchema = z.object({
     .string()
     .min(2, 'Recipe name must be between 2 to 150 characters.')
     .max(150, 'Recipe name must be between 2 to 150 characters.'),
-  description: z.string().default(''),
-  calories: z.number().int().min(0).max(32767).nullable().optional(),
+  description: z.string().nullable().optional(),
+  calories: z.number({ error: 'Calories is required and cannot be null.' }).int().min(0).max(32767),
   servings: z.number().int().positive('Servings must be a more than zero.').max(32767),
   cookingTime: z.number().int().min(0, 'Cooking time cannot be negative.').max(32767),
   preparationTime: z.number().int().positive('Preparation time cannot be zero minutes.').max(32767),
@@ -78,8 +78,8 @@ const RecipeUpdateSchema = z.object({
     .min(2, 'Recipe name must be between 2 to 150 characters.')
     .max(150, 'Recipe name must be between 2 to 150 characters.')
     .optional(),
-  description: z.string().optional(),
-  calories: z.number().int().min(0).max(32767).nullable().optional(),
+  description: z.string().nullable().optional(),
+  calories: z.number({ error: 'Calories cannot be null.' }).int().min(0).max(32767).optional(),
   servings: z.number().int().positive().max(32767).optional(),
   cookingTime: z.number().int().min(0).max(32767).optional(),
   preparationTime: z.number().int().positive().max(32767).optional(),
