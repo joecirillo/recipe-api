@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { authMiddleware } from './middleware/auth'
 import { errorHandler } from './middleware/error-handler'
 import { rateLimiterMiddleware } from './middleware/rate-limiter'
+import { buildError } from './lib/response'
 import { cuisineRouter } from './routes/cuisines'
 import { ingredientRouter } from './routes/ingredients'
 import { tagRouter } from './routes/tags'
@@ -12,6 +13,7 @@ import { recipeRouter } from './routes/recipes'
 const app = new Hono<{ Bindings: CloudflareBindings }>()
 
 app.onError(errorHandler)
+app.notFound((c) => c.json(buildError(404, 'Route not found', c.req.path), 404))
 
 app.get('/health', (c) => c.json({ status: 'ok' }))
 
