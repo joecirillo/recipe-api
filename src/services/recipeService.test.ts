@@ -255,6 +255,7 @@ const RECIPE_ROW = {
 const CREATE_RECIPE_INPUT: Parameters<typeof createRecipe>[1] = {
   name: 'Pasta',
   description: '',
+  calories: 450,
   servings: 2,
   cookingTime: 10,
   preparationTime: 5,
@@ -265,11 +266,11 @@ const CREATE_RECIPE_INPUT: Parameters<typeof createRecipe>[1] = {
 }
 
 describe('createRecipe', () => {
-  it('inserts null, not undefined, when calories and imageUrl are omitted', async () => {
+  it('inserts null, not undefined, when imageUrl is omitted', async () => {
     const { db, insertedValues } = makeRecipeDb(RECIPE_ROW)
     await createRecipe(db, CREATE_RECIPE_INPUT)
     const [recipeValues] = valuesFor(insertedValues, recipes)
-    expect(recipeValues.calories).toBeNull()
+    expect(recipeValues.calories).toBe(CREATE_RECIPE_INPUT.calories)
     expect(recipeValues.imageUrl).toBeNull()
   })
 
@@ -296,6 +297,13 @@ describe('createRecipe', () => {
     const [recipeValues] = valuesFor(insertedValues, recipes)
     expect(recipeValues.name).toBe('Creamy Tomato Soup')
   })
+
+  it('inserts empty string, not null, when description is null', async () => {
+    const { db, insertedValues } = makeRecipeDb(RECIPE_ROW)
+    await createRecipe(db, { ...CREATE_RECIPE_INPUT, description: null })
+    const [recipeValues] = valuesFor(insertedValues, recipes)
+    expect(recipeValues.description).toBe('')
+  })
 })
 
 describe('updateRecipe', () => {
@@ -315,5 +323,11 @@ describe('updateRecipe', () => {
     const { db, updatedValues } = makeRecipeDb(RECIPE_ROW)
     await updateRecipe(db, 1, { name: 'creamy TOMATO soup' })
     expect(updatedValues[0].name).toBe('Creamy Tomato Soup')
+  })
+
+  it('clears description to empty string, not null, when set to null', async () => {
+    const { db, updatedValues } = makeRecipeDb(RECIPE_ROW)
+    await updateRecipe(db, 1, { description: null })
+    expect(updatedValues[0].description).toBe('')
   })
 })

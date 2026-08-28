@@ -31,8 +31,8 @@ export type StepInput = { stepNumber: number; description: string; tip?: string 
 
 export type RecipeSaveInput = {
   name: string
-  description: string
-  calories?: number | null
+  description?: string | null
+  calories: number
   servings: number
   cookingTime: number
   preparationTime: number
@@ -46,8 +46,8 @@ export type RecipeSaveInput = {
 
 export type RecipeUpdateInput = {
   name?: string
-  description?: string
-  calories?: number | null
+  description?: string | null
+  calories?: number
   servings?: number
   cookingTime?: number
   preparationTime?: number
@@ -275,14 +275,15 @@ export async function createRecipe(db: Db, input: RecipeSaveInput): Promise<Reci
       .insert(recipes)
       .values({
         name: toTitleCase(input.name),
-        description: input.description,
+        description: input.description ?? '',
         cuisineId: cuisine.id,
         author: input.author,
-        // ?? null on every nullable optional field below: the postgres driver rejects
+        // ?? null on nullable optional fields below: the postgres driver rejects
         // `undefined` bind params outright, so an omitted field must be coerced. Applies
         // wherever an insert takes a nullable-no-default column straight from input
-        // (see also notes/tip in the ingredient/step inserts further down).
-        calories: input.calories ?? null,
+        // (see also notes/tip in the ingredient/step inserts further down). calories is
+        // NOT NULL and required by RecipeSaveInput, so it needs no such fallback.
+        calories: input.calories,
         servings: input.servings,
         cookingTime: input.cookingTime,
         preparationTime: input.preparationTime,
@@ -339,11 +340,13 @@ export async function updateRecipe(
 
     // updatedAt is always set explicitly on PATCH, as required by the spec.
     // Note: unlike the Java source (which ignores null fields), null here nullifies
-    // nullable columns (calories, imageUrl). Non-nullable columns cannot be set to null.
+    // nullable columns (imageUrl). description is non-nullable in the DB, so a null
+    // input clears it to '' instead. calories rejects null at the request-validation
+    // layer, so it never arrives here as null.
     const patch: Record<string, unknown> = { updatedAt: new Date() }
 
     if (input.name !== undefined) patch.name = toTitleCase(input.name)
-    if (input.description !== undefined) patch.description = input.description
+    if (input.description !== undefined) patch.description = input.description ?? ''
     if (input.author !== undefined) patch.author = input.author
     if (input.calories !== undefined) patch.calories = input.calories
     if (input.servings !== undefined) patch.servings = input.servings

@@ -61,6 +61,7 @@ const FULL_RECIPE: recipeService.RecipeResponse = {
 const SAVE_BODY = {
   name: 'Pasta',
   description: 'A simple pasta dish',
+  calories: 450,
   servings: 2,
   cookingTime: 10,
   preparationTime: 5,
@@ -403,6 +404,40 @@ describe('POST /recipes', () => {
     expect(res.status).toBe(201)
   })
 
+  it('returns 400 for an explicit null calories', async () => {
+    const res = await request('/recipes', {
+      method: 'POST',
+      body: { ...SAVE_BODY, calories: null },
+    })
+    expect(res.status).toBe(400)
+    const body = (await res.json()) as Record<string, any>
+    expect(body.message).toBe('Calories is required and cannot be null.')
+    expect(vi.mocked(recipeService.createRecipe)).not.toHaveBeenCalled()
+  })
+
+  it('returns 400 when calories is omitted', async () => {
+    const bodyWithoutCalories: Record<string, unknown> = { ...SAVE_BODY }
+    delete bodyWithoutCalories.calories
+    const res = await request('/recipes', { method: 'POST', body: bodyWithoutCalories })
+    expect(res.status).toBe(400)
+    const body = (await res.json()) as Record<string, any>
+    expect(body.message).toBe('Calories is required and cannot be null.')
+    expect(vi.mocked(recipeService.createRecipe)).not.toHaveBeenCalled()
+  })
+
+  it('accepts a null description', async () => {
+    vi.mocked(recipeService.createRecipe).mockResolvedValue(FULL_RECIPE)
+    const res = await request('/recipes', {
+      method: 'POST',
+      body: { ...SAVE_BODY, description: null },
+    })
+    expect(res.status).toBe(201)
+    expect(vi.mocked(recipeService.createRecipe)).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ description: null }),
+    )
+  })
+
   it('accepts explicit null id on cuisine, ingredients, and tags', async () => {
     const res = await request('/recipes', {
       method: 'POST',
@@ -485,12 +520,20 @@ describe('PATCH /recipes/:id', () => {
 
   it('passes only provided fields to service', async () => {
     vi.mocked(recipeService.updateRecipe).mockResolvedValue(FULL_RECIPE)
-    await request('/recipes/1', { method: 'PATCH', body: { calories: null } })
+    await request('/recipes/1', { method: 'PATCH', body: { description: null } })
     expect(vi.mocked(recipeService.updateRecipe)).toHaveBeenCalledWith(
       expect.anything(),
       1,
-      expect.objectContaining({ calories: null }),
+      expect.objectContaining({ description: null }),
     )
+  })
+
+  it('returns 400 for an explicit null calories', async () => {
+    const res = await request('/recipes/1', { method: 'PATCH', body: { calories: null } })
+    expect(res.status).toBe(400)
+    const body = (await res.json()) as Record<string, any>
+    expect(body.message).toBe('Calories cannot be null.')
+    expect(vi.mocked(recipeService.updateRecipe)).not.toHaveBeenCalled()
   })
 
   it('strips the public URL prefix before storing a presigned imageUrl', async () => {
