@@ -1,7 +1,12 @@
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { BadRequestError } from '../errors'
-import { ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE, buildImageKey } from '../lib/image-constraints'
+import {
+  ALLOWED_IMAGE_TYPES,
+  MAX_IMAGE_SIZE,
+  MAX_IMAGE_SIZE_ERROR_MESSAGE,
+  buildImageKey,
+} from '../lib/image-constraints'
 
 // Single-use in practice: each call mints a fresh, randomly-keyed object, so a
 // leaked URL only ever grants a PUT to that one key, not an update to an existing image.
@@ -33,7 +38,7 @@ export async function createPresignedUpload(
     throw new BadRequestError('contentLength must be greater than 0')
   }
   if (contentLength > MAX_IMAGE_SIZE) {
-    throw new BadRequestError('File exceeds 5MB limit')
+    throw new BadRequestError(MAX_IMAGE_SIZE_ERROR_MESSAGE)
   }
 
   const key = buildImageKey(contentType)

@@ -1,5 +1,7 @@
 export const MAX_IMAGE_SIZE = 5 * 1024 * 1024 // 5 MB
 
+export const MAX_IMAGE_SIZE_ERROR_MESSAGE = `File exceeds ${MAX_IMAGE_SIZE / (1024 * 1024)}MB limit`
+
 export const ALLOWED_IMAGE_TYPES = new Set([
   'image/jpeg',
   'image/png',
