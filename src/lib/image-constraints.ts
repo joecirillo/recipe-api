@@ -1,4 +1,4 @@
-export const MAX_IMAGE_SIZE = 25 * 1024 * 1024 // 25 MB
+export const MAX_IMAGE_SIZE = 5 * 1024 * 1024 // 5 MB
 
 export const ALLOWED_IMAGE_TYPES = new Set([
   'image/jpeg',

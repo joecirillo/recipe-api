@@ -30,13 +30,13 @@ describe('uploadImage', () => {
     expect(vi.mocked(bucket.put)).not.toHaveBeenCalled()
   })
 
-  it('throws BadRequestError for a file exceeding 25MB', async () => {
+  it('throws BadRequestError for a file exceeding 5MB', async () => {
     const bucket = makeBucket()
-    // Use a mock object so we don't allocate 25MB in the test
-    const file = { size: 25 * 1024 * 1024 + 1, type: 'image/jpeg' } as unknown as File
+    // Use a mock object so we don't allocate 5MB in the test
+    const file = { size: 5 * 1024 * 1024 + 1, type: 'image/jpeg' } as unknown as File
 
     await expect(uploadImage(bucket, PUBLIC_URL, file)).rejects.toThrow(
-      new BadRequestError('File exceeds 25MB limit'),
+      new BadRequestError('File exceeds 5MB limit'),
     )
     expect(vi.mocked(bucket.put)).not.toHaveBeenCalled()
   })

@@ -11,7 +11,7 @@ export async function uploadImage(
   }
 
   if (file.size > MAX_IMAGE_SIZE) {
-    throw new BadRequestError('File exceeds 25MB limit')
+    throw new BadRequestError('File exceeds 5MB limit')
   }
 
   const contentType = file.type

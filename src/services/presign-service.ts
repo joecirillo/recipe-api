@@ -33,7 +33,7 @@ export async function createPresignedUpload(
     throw new BadRequestError('contentLength must be greater than 0')
   }
   if (contentLength > MAX_IMAGE_SIZE) {
-    throw new BadRequestError('File exceeds 25MB limit')
+    throw new BadRequestError('File exceeds 5MB limit')
   }
 
   const key = buildImageKey(contentType)
