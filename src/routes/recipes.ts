@@ -207,6 +207,6 @@ recipeRouter.delete('/:id', async (c) => {
   const id = Number(c.req.param('id'))
   if (isNaN(id)) throw new BadRequestError('Invalid recipe id')
   const db = createDb(c.env.HYPERDRIVE.connectionString)
-  await deleteRecipe(db, id)
+  await deleteRecipe(db, id, c.env.IMAGE_BUCKET, c.env.R2_PUBLIC_URL)
   return c.body(null, 204)
 })

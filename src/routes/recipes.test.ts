@@ -13,6 +13,7 @@ type TestBindings = {
   USER_API_KEY: string
   ADMIN_API_KEY: string
   HYPERDRIVE: { connectionString: string }
+  IMAGE_BUCKET: R2Bucket
   R2_PUBLIC_URL: string
 }
 
@@ -22,6 +23,7 @@ const TEST_ENV: TestBindings = {
   USER_API_KEY: USER_KEY,
   ADMIN_API_KEY: ADMIN_KEY,
   HYPERDRIVE: { connectionString: 'postgresql://test' },
+  IMAGE_BUCKET: {} as unknown as R2Bucket,
   R2_PUBLIC_URL: 'https://pub-test.r2.dev',
 }
 
@@ -606,7 +608,12 @@ describe('DELETE /recipes/:id', () => {
     vi.mocked(recipeService.deleteRecipe).mockResolvedValue(undefined)
     const res = await request('/recipes/1', { method: 'DELETE', apiKey: ADMIN_KEY })
     expect(res.status).toBe(204)
-    expect(vi.mocked(recipeService.deleteRecipe)).toHaveBeenCalledWith(expect.anything(), 1)
+    expect(vi.mocked(recipeService.deleteRecipe)).toHaveBeenCalledWith(
+      expect.anything(),
+      1,
+      TEST_ENV.IMAGE_BUCKET,
+      TEST_ENV.R2_PUBLIC_URL,
+    )
   })
 
   it('returns 401 without admin key (user key is rejected)', async () => {
