@@ -1,6 +1,14 @@
-import { describe, expect, it, vi } from 'vitest'
-import { createRecipe, listRecipes, searchRecipes, updateRecipe } from './recipeService'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  createRecipe,
+  deleteRecipe,
+  listRecipes,
+  searchRecipes,
+  updateRecipe,
+} from './recipeService'
 import { recipeIngredients, recipeInstructionSteps, recipes } from '../db/schema'
+import { NotFoundError } from '../errors'
+import { deleteImage } from './image-service'
 
 vi.mock('./cuisine-service', () => ({
   resolveCuisine: vi.fn().mockResolvedValue({ id: 1, name: 'Italian' }),
@@ -13,6 +21,9 @@ vi.mock('./unit-service', () => ({
 }))
 vi.mock('./tag-service', () => ({
   resolveTag: vi.fn().mockResolvedValue({ id: 5, name: 'Quick' }),
+}))
+vi.mock('./image-service', () => ({
+  deleteImage: vi.fn(),
 }))
 
 function makeDb(rows: { id: number; name: string; imageUrl: string | null }[]) {
@@ -329,5 +340,99 @@ describe('updateRecipe', () => {
     const { db, updatedValues } = makeRecipeDb(RECIPE_ROW)
     await updateRecipe(db, 1, { description: null })
     expect(updatedValues[0].description).toBe('')
+  })
+})
+
+const PUBLIC_URL = 'https://pub-test.r2.dev'
+
+function makeBucket() {
+  return {} as unknown as R2Bucket
+}
+
+function makeDeleteDb(row: { id: number; imageUrl: string | null } | undefined) {
+  return {
+    delete: vi.fn(() => ({
+      where: vi.fn(() => ({
+        returning: vi.fn().mockResolvedValue(row ? [row] : []),
+      })),
+    })),
+  } as unknown as Parameters<typeof deleteRecipe>[0]
+}
+
+describe('deleteRecipe', () => {
+  beforeEach(() => {
+    vi.mocked(deleteImage).mockReset()
+  })
+
+  it('throws NotFoundError when no row is deleted', async () => {
+    const db = makeDeleteDb(undefined)
+
+    await expect(deleteRecipe(db, 999, makeBucket(), PUBLIC_URL)).rejects.toThrow(
+      new NotFoundError('Recipe not found with id: 999'),
+    )
+    expect(vi.mocked(deleteImage)).not.toHaveBeenCalled()
+  })
+
+  it('skips image deletion when the recipe has no imageUrl', async () => {
+    const db = makeDeleteDb({ id: 1, imageUrl: null })
+
+    await deleteRecipe(db, 1, makeBucket(), PUBLIC_URL)
+
+    expect(vi.mocked(deleteImage)).not.toHaveBeenCalled()
+  })
+
+  it('deletes the R2 object using the stored key', async () => {
+    const db = makeDeleteDb({ id: 1, imageUrl: 'recipes/abc-123.jpg' })
+    vi.mocked(deleteImage).mockResolvedValue(undefined)
+    const bucket = makeBucket()
+
+    await deleteRecipe(db, 1, bucket, PUBLIC_URL)
+
+    expect(vi.mocked(deleteImage)).toHaveBeenCalledWith(bucket, 'recipes/abc-123.jpg')
+  })
+
+  it('resolves a legacy full-URL imageUrl to a storage key before deleting', async () => {
+    const db = makeDeleteDb({ id: 1, imageUrl: `${PUBLIC_URL}/recipes/legacy.jpg` })
+    vi.mocked(deleteImage).mockResolvedValue(undefined)
+
+    await deleteRecipe(db, 1, makeBucket(), PUBLIC_URL)
+
+    expect(vi.mocked(deleteImage)).toHaveBeenCalledWith(expect.anything(), 'recipes/legacy.jpg')
+  })
+
+  it('retries a failed R2 delete and succeeds without throwing', async () => {
+    vi.useFakeTimers()
+    const db = makeDeleteDb({ id: 1, imageUrl: 'recipes/abc-123.jpg' })
+    vi.mocked(deleteImage)
+      .mockRejectedValueOnce(new Error('R2 unavailable'))
+      .mockRejectedValueOnce(new Error('R2 unavailable'))
+      .mockResolvedValueOnce(undefined)
+
+    const promise = deleteRecipe(db, 1, makeBucket(), PUBLIC_URL)
+    await vi.runAllTimersAsync()
+    await promise
+
+    expect(vi.mocked(deleteImage)).toHaveBeenCalledTimes(3)
+    vi.useRealTimers()
+  })
+
+  it('gives up after 3 attempts, logs the orphaned key, and does not fail the delete', async () => {
+    vi.useFakeTimers()
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const db = makeDeleteDb({ id: 1, imageUrl: 'recipes/abc-123.jpg' })
+    vi.mocked(deleteImage).mockRejectedValue(new Error('R2 unavailable'))
+
+    const promise = deleteRecipe(db, 1, makeBucket(), PUBLIC_URL)
+    await vi.runAllTimersAsync()
+    await expect(promise).resolves.toBeUndefined()
+
+    expect(vi.mocked(deleteImage)).toHaveBeenCalledTimes(3)
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('"recipeId":1'))
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.stringContaining('"imageKey":"recipes/abc-123.jpg"'),
+    )
+
+    errorSpy.mockRestore()
+    vi.useRealTimers()
   })
 })

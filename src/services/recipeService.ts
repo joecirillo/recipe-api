@@ -10,11 +10,16 @@ import {
   tags,
 } from '../db/schema'
 import { NotFoundError } from '../errors'
+import { toStorageKey } from '../lib/image-url'
 import { toTitleCase } from '../lib/text'
 import { resolveCuisine } from './cuisine-service'
 import { resolveIngredient } from './ingredient-service'
+import { deleteImage } from './image-service'
 import { resolveTag } from './tag-service'
 import { resolveUnit } from './unit-service'
+
+const IMAGE_DELETE_MAX_ATTEMPTS = 3
+const IMAGE_DELETE_BACKOFF_MS = 200
 
 type Db = ReturnType<typeof createDb>
 
@@ -402,9 +407,52 @@ export async function updateRecipe(
   return fetchFullRecipe(db, id)
 }
 
-export async function deleteRecipe(db: Db, id: number): Promise<void> {
+export async function deleteRecipe(
+  db: Db,
+  id: number,
+  bucket: R2Bucket,
+  publicUrl: string,
+): Promise<void> {
   // Single atomic statement: .returning() gives us a row if the delete hit something,
   // empty array if not. Avoids the findFirst + delete TOCTOU race.
-  const [deleted] = await db.delete(recipes).where(eq(recipes.id, id)).returning({ id: recipes.id })
+  const [deleted] = await db
+    .delete(recipes)
+    .where(eq(recipes.id, id))
+    .returning({ id: recipes.id, imageUrl: recipes.imageUrl })
   if (!deleted) throw new NotFoundError(`Recipe not found with id: ${id}`)
+
+  if (deleted.imageUrl) {
+    await deleteRecipeImage(bucket, toStorageKey(deleted.imageUrl, publicUrl), id)
+  }
+}
+
+// The recipe row is already gone by the time this runs, so a failure here can't be
+// surfaced to the caller without falsely implying the delete failed. Retry a bounded
+// number of times, then log the orphaned key for manual/sweep cleanup rather than
+// blocking or failing the recipe delete response.
+async function deleteRecipeImage(bucket: R2Bucket, key: string, recipeId: number): Promise<void> {
+  for (let attempt = 1; attempt <= IMAGE_DELETE_MAX_ATTEMPTS; attempt++) {
+    try {
+      await deleteImage(bucket, key)
+      return
+    } catch (err) {
+      if (attempt === IMAGE_DELETE_MAX_ATTEMPTS) {
+        console.error(
+          JSON.stringify({
+            message: 'Failed to delete orphaned recipe image from R2',
+            recipeId,
+            imageKey: key,
+            attempts: attempt,
+            error: err instanceof Error ? err.message : String(err),
+          }),
+        )
+        return
+      }
+      await sleep(IMAGE_DELETE_BACKOFF_MS * attempt)
+    }
+  }
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
 }
