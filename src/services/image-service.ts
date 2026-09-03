@@ -1,5 +1,10 @@
 import { BadRequestError } from '../errors'
-import { ALLOWED_IMAGE_TYPES, MAX_IMAGE_SIZE, buildImageKey } from '../lib/image-constraints'
+import {
+  ALLOWED_IMAGE_TYPES,
+  MAX_IMAGE_SIZE,
+  MAX_IMAGE_SIZE_ERROR_MESSAGE,
+  buildImageKey,
+} from '../lib/image-constraints'
 
 export async function uploadImage(
   bucket: R2Bucket,
@@ -11,7 +16,7 @@ export async function uploadImage(
   }
 
   if (file.size > MAX_IMAGE_SIZE) {
-    throw new BadRequestError('File exceeds 25MB limit')
+    throw new BadRequestError(MAX_IMAGE_SIZE_ERROR_MESSAGE)
   }
 
   const contentType = file.type

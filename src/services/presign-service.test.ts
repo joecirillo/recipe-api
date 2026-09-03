@@ -38,10 +38,10 @@ describe('createPresignedUpload', () => {
     expect(getSignedUrlMock).not.toHaveBeenCalled()
   })
 
-  it('throws BadRequestError for contentLength exceeding 25MB', async () => {
+  it('throws BadRequestError for contentLength exceeding 5MB', async () => {
     await expect(
-      createPresignedUpload(CREDENTIALS, BUCKET, 'image/jpeg', 25 * 1024 * 1024 + 1),
-    ).rejects.toThrow(new BadRequestError('File exceeds 25MB limit'))
+      createPresignedUpload(CREDENTIALS, BUCKET, 'image/jpeg', 5 * 1024 * 1024 + 1),
+    ).rejects.toThrow(new BadRequestError('File exceeds 5MB limit'))
     expect(getSignedUrlMock).not.toHaveBeenCalled()
   })
 
