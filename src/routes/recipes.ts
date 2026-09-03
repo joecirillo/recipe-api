@@ -196,7 +196,7 @@ recipeRouter.patch('/:id', requestLogger('recipe save'), async (c) => {
   const body = await c.req.json()
   const input = RecipeUpdateSchema.parse(body)
   if (input.imageUrl) input.imageUrl = toStorageKey(input.imageUrl, c.env.R2_PUBLIC_URL)
-  const data = await updateRecipe(db, id, input)
+  const data = await updateRecipe(db, id, input, c.env.IMAGE_BUCKET, c.env.R2_PUBLIC_URL)
   return c.json(
     buildSuccess(200, 'Recipe updated', withPublicImageUrl(data, c.env.R2_PUBLIC_URL)),
     200,
