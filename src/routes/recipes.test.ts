@@ -463,6 +463,68 @@ describe('POST /recipes', () => {
     expect(body.message).toBe('Cuisine request must have either an ID or a name.')
   })
 
+  it('returns 400 when cuisine name is too short', async () => {
+    const res = await request('/recipes', {
+      method: 'POST',
+      body: { ...SAVE_BODY, cuisine: { name: 'I' } },
+    })
+    expect(res.status).toBe(400)
+    const body = (await res.json()) as Record<string, any>
+    expect(body.message).toBe('Cuisine name must be between 2 and 100 characters.')
+  })
+
+  it('returns 400 when cuisine name is too long', async () => {
+    const res = await request('/recipes', {
+      method: 'POST',
+      body: { ...SAVE_BODY, cuisine: { name: 'a'.repeat(101) } },
+    })
+    expect(res.status).toBe(400)
+    const body = (await res.json()) as Record<string, any>
+    expect(body.message).toBe('Cuisine name must be between 2 and 100 characters.')
+  })
+
+  it('accepts a cuisine name at the max length boundary', async () => {
+    const res = await request('/recipes', {
+      method: 'POST',
+      body: { ...SAVE_BODY, cuisine: { name: 'a'.repeat(100) } },
+    })
+    expect(res.status).toBe(201)
+  })
+
+  it('returns 400 when ingredient name is too short', async () => {
+    const res = await request('/recipes', {
+      method: 'POST',
+      body: { ...SAVE_BODY, ingredients: [{ name: 'S', unitId: 1, quantity: 200 }] },
+    })
+    expect(res.status).toBe(400)
+    const body = (await res.json()) as Record<string, any>
+    expect(body.message).toBe('Ingredient name must be between 2 and 150 characters.')
+  })
+
+  it('returns 400 when ingredient name is too long', async () => {
+    const res = await request('/recipes', {
+      method: 'POST',
+      body: {
+        ...SAVE_BODY,
+        ingredients: [{ name: 'a'.repeat(151), unitId: 1, quantity: 200 }],
+      },
+    })
+    expect(res.status).toBe(400)
+    const body = (await res.json()) as Record<string, any>
+    expect(body.message).toBe('Ingredient name must be between 2 and 150 characters.')
+  })
+
+  it('accepts an ingredient name at the max length boundary', async () => {
+    const res = await request('/recipes', {
+      method: 'POST',
+      body: {
+        ...SAVE_BODY,
+        ingredients: [{ name: 'a'.repeat(150), unitId: 1, quantity: 200 }],
+      },
+    })
+    expect(res.status).toBe(201)
+  })
+
   it('propagates 404 from service when unit is not found', async () => {
     vi.mocked(recipeService.createRecipe).mockRejectedValue(
       new NotFoundError('Unit ID not found: 999'),

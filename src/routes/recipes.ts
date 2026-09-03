@@ -19,7 +19,11 @@ export const recipeRouter = new Hono<{ Bindings: CloudflareBindings }>()
 const CuisineInputSchema = z
   .object({
     id: z.number().int().positive().nullish(),
-    name: z.string().optional(),
+    name: z
+      .string()
+      .min(2, 'Cuisine name must be between 2 and 100 characters.')
+      .max(100, 'Cuisine name must be between 2 and 100 characters.')
+      .optional(),
   })
   .refine((c) => c.id != null || (c.name?.trim().length ?? 0) > 0, {
     message: 'Cuisine request must have either an ID or a name.',
@@ -28,7 +32,11 @@ const CuisineInputSchema = z
 const IngredientInputSchema = z
   .object({
     id: z.number().int().positive().nullish(),
-    name: z.string().optional(),
+    name: z
+      .string()
+      .min(2, 'Ingredient name must be between 2 and 150 characters.')
+      .max(150, 'Ingredient name must be between 2 and 150 characters.')
+      .optional(),
     unitId: z.number().int().positive(),
     quantity: z.number().positive(),
     notes: z.string().nullish(),
