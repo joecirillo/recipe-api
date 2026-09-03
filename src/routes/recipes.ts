@@ -34,8 +34,8 @@ const IngredientInputSchema = z
     id: z.number().int().positive().nullish(),
     name: z
       .string()
-      .min(2, 'Ingredient name must be between 2 and 150 characters.')
-      .max(150, 'Ingredient name must be between 2 and 150 characters.')
+      .min(2, 'Ingredient name must be between 2 and 255 characters.')
+      .max(255, 'Ingredient name must be between 2 and 255 characters.')
       .optional(),
     unitId: z.number().int().positive(),
     quantity: z.number().positive(),

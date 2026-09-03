@@ -491,6 +491,18 @@ describe('POST /recipes', () => {
     expect(res.status).toBe(201)
   })
 
+  // An explicit empty string now fails length validation before the object-level
+  // .refine() (id-or-name) check runs, so the message differs from the {} case above.
+  it('returns the length error, not the id-or-name error, for an explicit empty cuisine name', async () => {
+    const res = await request('/recipes', {
+      method: 'POST',
+      body: { ...SAVE_BODY, cuisine: { name: '' } },
+    })
+    expect(res.status).toBe(400)
+    const body = (await res.json()) as Record<string, any>
+    expect(body.message).toBe('Cuisine name must be between 2 and 100 characters.')
+  })
+
   it('returns 400 when ingredient name is too short', async () => {
     const res = await request('/recipes', {
       method: 'POST',
@@ -498,7 +510,7 @@ describe('POST /recipes', () => {
     })
     expect(res.status).toBe(400)
     const body = (await res.json()) as Record<string, any>
-    expect(body.message).toBe('Ingredient name must be between 2 and 150 characters.')
+    expect(body.message).toBe('Ingredient name must be between 2 and 255 characters.')
   })
 
   it('returns 400 when ingredient name is too long', async () => {
@@ -506,12 +518,12 @@ describe('POST /recipes', () => {
       method: 'POST',
       body: {
         ...SAVE_BODY,
-        ingredients: [{ name: 'a'.repeat(151), unitId: 1, quantity: 200 }],
+        ingredients: [{ name: 'a'.repeat(256), unitId: 1, quantity: 200 }],
       },
     })
     expect(res.status).toBe(400)
     const body = (await res.json()) as Record<string, any>
-    expect(body.message).toBe('Ingredient name must be between 2 and 150 characters.')
+    expect(body.message).toBe('Ingredient name must be between 2 and 255 characters.')
   })
 
   it('accepts an ingredient name at the max length boundary', async () => {
@@ -519,10 +531,20 @@ describe('POST /recipes', () => {
       method: 'POST',
       body: {
         ...SAVE_BODY,
-        ingredients: [{ name: 'a'.repeat(150), unitId: 1, quantity: 200 }],
+        ingredients: [{ name: 'a'.repeat(255), unitId: 1, quantity: 200 }],
       },
     })
     expect(res.status).toBe(201)
+  })
+
+  it('returns the length error, not the id-or-name error, for an explicit empty ingredient name', async () => {
+    const res = await request('/recipes', {
+      method: 'POST',
+      body: { ...SAVE_BODY, ingredients: [{ name: '', unitId: 1, quantity: 200 }] },
+    })
+    expect(res.status).toBe(400)
+    const body = (await res.json()) as Record<string, any>
+    expect(body.message).toBe('Ingredient name must be between 2 and 255 characters.')
   })
 
   it('propagates 404 from service when unit is not found', async () => {
