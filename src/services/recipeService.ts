@@ -335,13 +335,27 @@ export async function updateRecipe(
   db: Db,
   id: number,
   input: RecipeUpdateInput,
+  bucket: R2Bucket,
+  publicUrl: string,
 ): Promise<RecipeResponse> {
+  let replacedImageKey: string | null = null
+
   await db.transaction(async (tx) => {
     // tx is structurally compatible with Db; cast required due to Drizzle's type hierarchy
     const txDb = tx as unknown as Db
 
     const existing = await tx.query.recipes.findFirst({ where: eq(recipes.id, id) })
     if (!existing) throw new NotFoundError(`Recipe not found with id: ${id}`)
+
+    // Only the old image is orphaned by a replacement: a null imageUrl clears the field
+    // without uploading a new one (nothing to delete), and an omitted field leaves it
+    // untouched. Resolve the existing value to a key in case it's a legacy full URL.
+    if (input.imageUrl !== undefined && input.imageUrl !== null && existing.imageUrl) {
+      const oldKey = toStorageKey(existing.imageUrl, publicUrl)
+      if (oldKey !== input.imageUrl) {
+        replacedImageKey = oldKey
+      }
+    }
 
     // updatedAt is always set explicitly on PATCH, as required by the spec.
     // Note: unlike the Java source (which ignores null fields), null here nullifies
@@ -404,6 +418,10 @@ export async function updateRecipe(
     }
   })
 
+  if (replacedImageKey) {
+    await deleteRecipeImage(bucket, replacedImageKey, id)
+  }
+
   return fetchFullRecipe(db, id)
 }
 
@@ -426,10 +444,11 @@ export async function deleteRecipe(
   }
 }
 
-// The recipe row is already gone by the time this runs, so a failure here can't be
-// surfaced to the caller without falsely implying the delete failed. Retry a bounded
+// By the time this runs, the recipe row is either gone (deleteRecipe) or already
+// updated to point at the new image (updateRecipe), so a failure here can't be
+// surfaced to the caller without falsely implying the write failed. Retry a bounded
 // number of times, then log the orphaned key for manual/sweep cleanup rather than
-// blocking or failing the recipe delete response.
+// blocking or failing the recipe write response.
 async function deleteRecipeImage(bucket: R2Bucket, key: string, recipeId: number): Promise<void> {
   for (let attempt = 1; attempt <= IMAGE_DELETE_MAX_ATTEMPTS; attempt++) {
     try {

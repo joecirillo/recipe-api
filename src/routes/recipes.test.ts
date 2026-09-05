@@ -527,6 +527,8 @@ describe('PATCH /recipes/:id', () => {
       expect.anything(),
       1,
       expect.objectContaining({ description: null }),
+      TEST_ENV.IMAGE_BUCKET,
+      TEST_ENV.R2_PUBLIC_URL,
     )
   })
 
@@ -548,6 +550,8 @@ describe('PATCH /recipes/:id', () => {
       expect.anything(),
       1,
       expect.objectContaining({ imageUrl: 'recipes/xyz-789.jpg' }),
+      TEST_ENV.IMAGE_BUCKET,
+      TEST_ENV.R2_PUBLIC_URL,
     )
   })
 
@@ -558,6 +562,8 @@ describe('PATCH /recipes/:id', () => {
       expect.anything(),
       1,
       expect.objectContaining({ imageUrl: null }),
+      TEST_ENV.IMAGE_BUCKET,
+      TEST_ENV.R2_PUBLIC_URL,
     )
   })
 

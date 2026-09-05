@@ -318,12 +318,22 @@ describe('createRecipe', () => {
 })
 
 describe('updateRecipe', () => {
+  beforeEach(() => {
+    vi.mocked(deleteImage).mockReset()
+  })
+
   it('inserts null, not undefined, when ingredient notes and step tip are omitted', async () => {
     const { db, insertedValues } = makeRecipeDb(RECIPE_ROW)
-    await updateRecipe(db, 1, {
-      ingredients: [{ name: 'Spaghetti', unitId: 1, quantity: 200 }],
-      steps: [{ stepNumber: 1, description: 'Boil water' }],
-    })
+    await updateRecipe(
+      db,
+      1,
+      {
+        ingredients: [{ name: 'Spaghetti', unitId: 1, quantity: 200 }],
+        steps: [{ stepNumber: 1, description: 'Boil water' }],
+      },
+      makeBucket(),
+      PUBLIC_URL,
+    )
     const [ingredientValues] = valuesFor(insertedValues, recipeIngredients)
     const [stepValues] = valuesFor(insertedValues, recipeInstructionSteps)
     expect(ingredientValues.notes).toBeNull()
@@ -332,14 +342,88 @@ describe('updateRecipe', () => {
 
   it('normalizes the recipe name to title case when present', async () => {
     const { db, updatedValues } = makeRecipeDb(RECIPE_ROW)
-    await updateRecipe(db, 1, { name: 'creamy TOMATO soup' })
+    await updateRecipe(db, 1, { name: 'creamy TOMATO soup' }, makeBucket(), PUBLIC_URL)
     expect(updatedValues[0].name).toBe('Creamy Tomato Soup')
   })
 
   it('clears description to empty string, not null, when set to null', async () => {
     const { db, updatedValues } = makeRecipeDb(RECIPE_ROW)
-    await updateRecipe(db, 1, { description: null })
+    await updateRecipe(db, 1, { description: null }, makeBucket(), PUBLIC_URL)
     expect(updatedValues[0].description).toBe('')
+  })
+
+  it('does not delete an image when imageUrl is omitted', async () => {
+    const { db } = makeRecipeDb({ ...RECIPE_ROW, imageUrl: 'recipes/old.jpg' })
+    await updateRecipe(db, 1, { name: 'New Name' }, makeBucket(), PUBLIC_URL)
+    expect(vi.mocked(deleteImage)).not.toHaveBeenCalled()
+  })
+
+  it('does not delete the old image when imageUrl is cleared to null', async () => {
+    const { db } = makeRecipeDb({ ...RECIPE_ROW, imageUrl: 'recipes/old.jpg' })
+    await updateRecipe(db, 1, { imageUrl: null }, makeBucket(), PUBLIC_URL)
+    expect(vi.mocked(deleteImage)).not.toHaveBeenCalled()
+  })
+
+  it('does not delete anything when there was no previous image', async () => {
+    const { db } = makeRecipeDb({ ...RECIPE_ROW, imageUrl: null })
+    await updateRecipe(db, 1, { imageUrl: 'recipes/new.jpg' }, makeBucket(), PUBLIC_URL)
+    expect(vi.mocked(deleteImage)).not.toHaveBeenCalled()
+  })
+
+  it('does not delete the old image when the new imageUrl is unchanged', async () => {
+    const { db } = makeRecipeDb({ ...RECIPE_ROW, imageUrl: 'recipes/same.jpg' })
+    await updateRecipe(db, 1, { imageUrl: 'recipes/same.jpg' }, makeBucket(), PUBLIC_URL)
+    expect(vi.mocked(deleteImage)).not.toHaveBeenCalled()
+  })
+
+  it('deletes the old R2 object when imageUrl is replaced with a new key', async () => {
+    const { db } = makeRecipeDb({ ...RECIPE_ROW, imageUrl: 'recipes/old.jpg' })
+    vi.mocked(deleteImage).mockResolvedValue(undefined)
+    const bucket = makeBucket()
+
+    await updateRecipe(db, 1, { imageUrl: 'recipes/new.jpg' }, bucket, PUBLIC_URL)
+
+    expect(vi.mocked(deleteImage)).toHaveBeenCalledWith(bucket, 'recipes/old.jpg')
+  })
+
+  it('resolves a legacy full-URL previous imageUrl to a storage key before deleting', async () => {
+    const { db } = makeRecipeDb({
+      ...RECIPE_ROW,
+      imageUrl: `${PUBLIC_URL}/recipes/legacy.jpg`,
+    })
+    vi.mocked(deleteImage).mockResolvedValue(undefined)
+
+    await updateRecipe(db, 1, { imageUrl: 'recipes/new.jpg' }, makeBucket(), PUBLIC_URL)
+
+    expect(vi.mocked(deleteImage)).toHaveBeenCalledWith(expect.anything(), 'recipes/legacy.jpg')
+  })
+
+  it('does not delete the old image when the DB update fails', async () => {
+    const { db } = makeRecipeDb({ ...RECIPE_ROW, imageUrl: 'recipes/old.jpg' })
+    vi.mocked(db.transaction).mockRejectedValueOnce(new Error('db error'))
+
+    await expect(
+      updateRecipe(db, 1, { imageUrl: 'recipes/new.jpg' }, makeBucket(), PUBLIC_URL),
+    ).rejects.toThrow('db error')
+
+    expect(vi.mocked(deleteImage)).not.toHaveBeenCalled()
+  })
+
+  it('retries a failed old-image delete and gives up after 3 attempts without failing the update', async () => {
+    vi.useFakeTimers()
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const { db } = makeRecipeDb({ ...RECIPE_ROW, imageUrl: 'recipes/old.jpg' })
+    vi.mocked(deleteImage).mockRejectedValue(new Error('R2 unavailable'))
+
+    const promise = updateRecipe(db, 1, { imageUrl: 'recipes/new.jpg' }, makeBucket(), PUBLIC_URL)
+    await vi.runAllTimersAsync()
+    await expect(promise).resolves.toBeDefined()
+
+    expect(vi.mocked(deleteImage)).toHaveBeenCalledTimes(3)
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('"imageKey":"recipes/old.jpg"'))
+
+    errorSpy.mockRestore()
+    vi.useRealTimers()
   })
 })
 
