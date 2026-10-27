@@ -12,7 +12,7 @@ Requests are rate limited to **60 per minute per API key**. Exceeding the limit 
 
 ## Environment variables
 
-All variables are injected at runtime via Cloudflare secrets (production) or `.dev.vars` (local).
+Worker secrets are injected at runtime via Cloudflare secrets (production) or `.dev.vars` (local). Drizzle runs outside the Worker; the `db:*` scripts explicitly load `.dev.vars` into its process environment.
 
 | Variable               | Description                                                                                                                                                              |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -81,20 +81,63 @@ Copy the printed `id` into the `hyperdrive` binding's `id` field in `wrangler.js
 
 ## Local development
 
+Use Node.js 24 (`nvm use`) and pnpm 10.33.2, pinned in `package.json`.
+With Corepack installed, run `corepack enable` so `pnpm` uses that version.
+
 ```bash
-pnpm install
-cp .dev.vars.example .dev.vars  # fill in values
+pnpm install --frozen-lockfile
+cp .dev.vars.example .dev.vars  # fill in development values
 pnpm dev
 ```
+
+The Worker listens at <http://localhost:8787>. Match the frontend's server-side
+`API_KEY` to this backend's `USER_API_KEY`. The example keys are local placeholders,
+not production credentials. Use a development database and R2 credentials for manual
+endpoint checks; never commit `.dev.vars`.
 
 `.dev.vars` needs both `DATABASE_URL` (for `drizzle-kit`) and
 `CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE` (read by `wrangler dev` in place of the
 real Hyperdrive binding) pointed at Supabase's direct connection.
 
+## Validation and database tooling
+
+```bash
+pnpm lint
+pnpm format:check
+pnpm test
+pnpm typecheck
+```
+
+These checks do not require production credentials. Pull requests and pushes to
+`main` run them in GitHub Actions. Use `pnpm exec prettier --write <files>` to format
+changed files. Worker bindings are declared in `worker-configuration.d.ts`; run
+`pnpm cf-typegen` and review the generated changes when changing Worker configuration.
+
+Drizzle does not automatically load Wrangler's `.dev.vars`. Use the wrappers below,
+which run Node with `--env-file=.dev.vars` and read `DATABASE_URL` from it:
+
+```bash
+pnpm db:introspect  # inspect the configured DB and write schema files
+pnpm db:generate    # generate migration files from schema changes
+pnpm db:push        # apply schema changes directly to the configured DB
+```
+
+An existing shell `DATABASE_URL` takes precedence over the env file. Confirm that the
+target is the intended development database before introspection or schema changes.
+`db:push` applies a schema diff directly; it does not execute the SQL migration files
+created by `db:generate`. Do not run these commands as part of routine validation.
+
+## Coding agents
+
+`AGENTS.md` is the shared instruction source for Codex and Claude Code; `CLAUDE.md`
+imports it. Both agents use the same commands and API conventions. Existing Claude
+skills, subagents, and GitHub workflows remain Claude-specific and unchanged.
+When changing a shared API contract, inspect the sibling `foodies-finds` repository.
+
 ## Deployment
 
 Pushes to `main` run `.github/workflows/deploy.yml`: install, `pnpm lint`, `pnpm format:check`,
-`pnpm test`, then `wrangler deploy`. The deploy step only runs if lint/format/test all pass.
+`pnpm test`, `pnpm typecheck`, then `wrangler deploy`. The deploy step only runs if all checks pass.
 
 ### CI/CD secrets
 
