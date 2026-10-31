@@ -11,7 +11,7 @@ function makeBucket() {
   } as unknown as R2Bucket
 }
 
-function makeFile(content: string | Uint8Array, name: string, type: string) {
+function makeFile(content: string | Uint8Array<ArrayBuffer>, name: string, type: string) {
   return new File([content], name, { type })
 }
 

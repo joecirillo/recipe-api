@@ -8,7 +8,11 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit",
+    "db:introspect": "node --env-file=.dev.vars ./node_modules/drizzle-kit/bin.cjs introspect",
+    "db:generate": "node --env-file=.dev.vars ./node_modules/drizzle-kit/bin.cjs generate",
+    "db:push": "node --env-file=.dev.vars ./node_modules/drizzle-kit/bin.cjs push"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1116.0",
@@ -27,6 +31,11 @@
     "eslint-config-prettier": "^10.1.5",
     "prettier": "^3.6.2",
     "vitest": "^4.1.10",
-    "wrangler": "^4.110.0"
+    "wrangler": "^4.110.0",
+    "typescript": "6.0.3"
+  },
+  "packageManager": "pnpm@10.33.2",
+  "engines": {
+    "node": "24.x"
   }
 }
