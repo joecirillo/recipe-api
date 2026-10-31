@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseRecipeYield } from './parseRecipeYield'
+import { parseRecipeYield } from './parse-recipe-yield'
 
 describe('parseRecipeYield', () => {
   it.each([4, '4', '4 servings', 'Serves 4', 'servings: 4', '4 people'])(

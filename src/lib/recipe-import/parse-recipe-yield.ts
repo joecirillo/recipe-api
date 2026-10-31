@@ -1,5 +1,5 @@
 import type { RecipeImportWarning } from '../types'
-import { plainText } from './plainText'
+import { plainText } from './plain-text'
 
 type ParsedYield = {
   originalYield: string | null

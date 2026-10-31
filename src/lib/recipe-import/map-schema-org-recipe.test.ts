@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { extractRecipeJsonLd } from './extractRecipeJsonLd'
-import { mapSchemaOrgRecipe } from './mapSchemaOrgRecipe'
+import { extractRecipeJsonLd } from './extract-recipe-json-ld'
+import { mapSchemaOrgRecipe } from './map-schema-org-recipe'
 
 const context = { sourceUrl: 'https://example.com/recipes/soup' }
 const preview = (recipe: Record<string, unknown>) =>

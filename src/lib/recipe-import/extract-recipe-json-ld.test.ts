@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { extractRecipeJsonLd } from './extractRecipeJsonLd'
+import { extractRecipeJsonLd } from './extract-recipe-json-ld'
 
 const script = (data: unknown) =>
   `<script type="application/ld+json">${JSON.stringify(data)}</script>`

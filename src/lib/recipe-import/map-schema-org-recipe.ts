@@ -1,8 +1,8 @@
 import { parseDurationMinutes } from '../duration'
 import type { RecipeImportPreview, RecipeImportWarning } from '../types'
-import type { ExtractedRecipeJsonLd } from './extractRecipeJsonLd'
-import { parseRecipeYield } from './parseRecipeYield'
-import { plainText } from './plainText'
+import type { ExtractedRecipeJsonLd } from './extract-recipe-json-ld'
+import { parseRecipeYield } from './parse-recipe-yield'
+import { plainText } from './plain-text'
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
