@@ -33,7 +33,6 @@ describe('parseRecipeYield', () => {
     '0–4',
     '999999999999999999',
     {},
-    ['4 servings'],
     true,
     Infinity,
     NaN,
@@ -51,6 +50,50 @@ describe('parseRecipeYield', () => {
     expect(parseRecipeYield(' <b>4</b> servings ')).toEqual({
       originalYield: ' <b>4</b> servings ',
       servings: 4,
+    })
+  })
+})
+
+describe('recipeYield arrays', () => {
+  it.each([
+    [['4', '4 servings'], '4\n4 servings'],
+    [[4, '4 servings'], '4\n4 servings'],
+    [[' <b>4</b> servings '], ' <b>4</b> servings '],
+  ])('accepts matching counts and preserves source text', (value, originalYield) => {
+    expect(parseRecipeYield(value)).toEqual({ servings: 4, originalYield })
+  })
+
+  it('retains unsupported text and selects the first usable count', () => {
+    expect(parseRecipeYield([{}, '24 cookies', '4 servings', null])).toEqual({
+      originalYield: '24 cookies\n4 servings',
+      servings: 4,
+      warning: expect.objectContaining({ code: 'UNSUPPORTED_YIELD' }),
+    })
+  })
+
+  it.each([
+    ['4', '6'],
+    ['4–6', '4'],
+    ['4', '4–6'],
+  ])('warns about conflicting or ranged counts', (...values) => {
+    expect(parseRecipeYield(values)).toMatchObject({
+      servings: 4,
+      warning: { code: 'AMBIGUOUS_YIELD', field: 'recipeYield' },
+    })
+  })
+
+  it('preserves item yields without inventing servings', () => {
+    expect(parseRecipeYield(['24 cookies', '2 loaves'])).toEqual({
+      originalYield: '24 cookies\n2 loaves',
+      warning: expect.objectContaining({ code: 'UNSUPPORTED_YIELD' }),
+    })
+  })
+
+  it('handles empty arrays and rejects invalid entries without coercion', () => {
+    expect(parseRecipeYield([])).toEqual({ originalYield: null })
+    expect(parseRecipeYield([null, {}, ['4']])).toEqual({
+      originalYield: null,
+      warning: expect.objectContaining({ code: 'UNSUPPORTED_YIELD' }),
     })
   })
 })

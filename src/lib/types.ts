@@ -8,6 +8,7 @@ export type RecipeImportWarning = {
     | 'UNSUPPORTED_YIELD'
     | 'INVALID_IMAGE_URL'
     | 'MULTIPLE_RECIPES'
+    | 'SAVE_LIMIT_EXCEEDED'
   field?: string
   message: string
 }

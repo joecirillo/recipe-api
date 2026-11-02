@@ -11,7 +11,7 @@ function positiveInteger(value: number): boolean {
   return Number.isSafeInteger(value) && value > 0
 }
 
-export function parseRecipeYield(value: unknown): ParsedYield {
+function parseSingleYield(value: unknown): ParsedYield {
   if (value == null) return { originalYield: null }
 
   const originalYield =
@@ -56,4 +56,45 @@ export function parseRecipeYield(value: unknown): ParsedYield {
         'The source yield is not a positive serving count. Review the original yield and enter servings if known.',
     },
   }
+}
+
+export function parseRecipeYield(value: unknown): ParsedYield {
+  if (!Array.isArray(value)) return parseSingleYield(value)
+  if (!value.length) return { originalYield: null }
+
+  const parsed = value.map(parseSingleYield)
+  const originals = parsed.flatMap((entry) =>
+    entry.originalYield === null ? [] : [entry.originalYield],
+  )
+  const originalYield = originals.length ? originals.join('\n') : null
+  const selected = parsed.find((entry) => entry.servings !== undefined)
+  if (!selected) {
+    return {
+      originalYield,
+      warning: {
+        code: 'UNSUPPORTED_YIELD',
+        field: 'recipeYield',
+        message:
+          'No source yield describes a positive serving count. Review the original yields and enter servings if known.',
+      },
+    }
+  }
+
+  const ambiguous = parsed.some(
+    (entry) =>
+      entry.servings !== undefined &&
+      (entry.servings !== selected.servings || entry.warning?.code === 'AMBIGUOUS_YIELD'),
+  )
+  const rejected = parsed.some((entry) => entry.servings === undefined)
+  const result: ParsedYield = { originalYield, servings: selected.servings }
+  if (ambiguous || rejected) {
+    result.warning = {
+      code: ambiguous ? 'AMBIGUOUS_YIELD' : 'UNSUPPORTED_YIELD',
+      field: 'recipeYield',
+      message: ambiguous
+        ? 'Source yields include differing counts or a range. Review the first usable serving count; its lower bound is used for a range.'
+        : 'Some source yields could not be interpreted as servings. Review the first usable serving count and original yields.',
+    }
+  }
+  return result
 }

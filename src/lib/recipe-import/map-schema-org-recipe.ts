@@ -3,6 +3,7 @@ import type { RecipeImportPreview, RecipeImportWarning } from '../types'
 import type { ExtractedRecipeJsonLd } from './extract-recipe-json-ld'
 import { parseRecipeYield } from './parse-recipe-yield'
 import { plainText } from './plain-text'
+import { warnAboutSaveLimits } from './warn-about-save-limits'
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
@@ -265,6 +266,8 @@ export function mapSchemaOrgRecipe(
   recipe.ingredients = ingredients
   recipe.steps = mapInstructions(node.recipeInstructions, warnings)
   recipe.tags = mapTags(node, warnings)
+
+  warnings.push(...warnAboutSaveLimits(recipe))
 
   return {
     recipe,
