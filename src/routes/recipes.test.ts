@@ -733,3 +733,53 @@ describe('DELETE /recipes/:id', () => {
     expect(vi.mocked(recipeService.deleteRecipe)).not.toHaveBeenCalled()
   })
 })
+
+describe.each(['POST', 'PATCH'])('%s recipe tag validation', (method) => {
+  beforeEach(() => {
+    vi.mocked(recipeService.createRecipe).mockResolvedValue(FULL_RECIPE)
+    vi.mocked(recipeService.updateRecipe).mockResolvedValue(FULL_RECIPE)
+  })
+
+  afterEach(() => vi.clearAllMocks())
+
+  const saveTags = (tags: unknown[]) =>
+    request(method === 'POST' ? '/recipes' : '/recipes/1', {
+      method,
+      body: method === 'POST' ? { ...SAVE_BODY, tags } : { tags },
+    })
+
+  it.each(['', 'a', 'a'.repeat(101)])('rejects an invalid tag name (%s)', async (name) => {
+    const res = await saveTags([{ name }])
+    expect(res.status).toBe(400)
+    expect(await res.json()).toMatchObject({
+      message: 'Tag name must be between 2 and 100 characters.',
+    })
+    expect(recipeService.createRecipe).not.toHaveBeenCalled()
+    expect(recipeService.updateRecipe).not.toHaveBeenCalled()
+  })
+
+  it.each(['ab', 'a'.repeat(100)])('accepts a boundary-length tag (%s)', async (name) => {
+    const res = await saveTags([{ name }])
+    expect(res.status).toBe(method === 'POST' ? 201 : 200)
+  })
+
+  it('accepts an ID-only tag', async () => {
+    const res = await saveTags([{ id: 5 }])
+    expect(res.status).toBe(method === 'POST' ? 201 : 200)
+  })
+
+  it.each([{}, { name: '  ' }])('rejects a tag without an ID or nonblank name', async (tag) => {
+    const res = await saveTags([tag])
+    expect(res.status).toBe(400)
+    expect(await res.json()).toMatchObject({
+      message: 'Tag request must have either an ID or a name.',
+    })
+  })
+
+  it('validates a supplied name even when an ID is present', async () => {
+    const res = await saveTags([{ id: 5, name: 'a' }])
+    expect(res.status).toBe(400)
+    expect(recipeService.createRecipe).not.toHaveBeenCalled()
+    expect(recipeService.updateRecipe).not.toHaveBeenCalled()
+  })
+})
