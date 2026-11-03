@@ -178,3 +178,46 @@ pnpm run deploy
 ```bash
 pnpm run cf-typegen
 ```
+
+## Nullable ingredient measurements
+
+Recipe create and update accept explicit `null` for ingredient `quantity`, `unitId`,
+or both. Supplied quantities must still be positive, and supplied unit IDs must be
+positive integers referencing an existing unit. Both properties must be present on
+submitted ingredient rows; use `null` for an unknown measurement. PATCH omitting
+`ingredients` leaves the collection unchanged; supplying it replaces the collection.
+Responses preserve null quantity and return null unit name/abbreviation when there is
+no unit. Ingredient identity and at least one ingredient remain required.
+
+The existing unique constraint is retained: the same ingredient may appear in
+multiple rows with null units, so separate uses such as salt for pasta water and
+salt to taste remain distinct (including their notes). Rows with the same ingredient
+and the same non-null unit still conflict and roll back the save. This matches the
+existing live database's nullable-unit uniqueness behavior; measurements are not
+used to merge or discard ingredient rows.
+
+Read-only inspection of the configured database on November 2, 2026 found `unit_id`
+already nullable and `quantity` NOT NULL. Before deploying nullable saves, confirm
+the target database and apply `migrations/0084-nullable-ingredient-measurements.sql`
+with your PostgreSQL migration tooling. This transactional, repeatable SQL only
+removes the two NOT NULL constraints; existing values and foreign keys are retained.
+It also supports databases where both columns still have NOT NULL constraints.
+The deployment workflow does not apply migrations automatically. No production
+schema changes were performed during implementation.
+
+Frontend form and import changes are tracked in
+[foodies-finds #78](https://github.com/joecirillo/foodies-finds/issues/78).
+Deploy the database migration, then this API, then the frontend changes.
+
+### PostgreSQL integration tests
+
+PostgreSQL integration tests are opt-in locally and do not run in CI. To run them,
+set `RECIPE_TEST_POSTGRES_URL` to a disposable localhost PostgreSQL 17 server with a
+role permitted to create databases, then run `pnpm test`. Do not use production
+credentials.
+The suite creates a uniquely named database, generates tables from the Drizzle
+schema, recreates the old NOT NULL constraints, seeds a measured recipe, applies the
+migration twice, and checks create/read, update/read, explicit clearing, omitted
+PATCH ingredients, rollback after an invalid unit, and duplicate-ingredient
+behavior. It drops only its own database when finished. Without this variable, the PostgreSQL integration suite is skipped;
+the ordinary unit and route tests still run.
