@@ -211,12 +211,13 @@ Deploy the database migration, then this API, then the frontend changes.
 
 ### PostgreSQL integration tests
 
-CI provisions a disposable PostgreSQL 17 server for the measurement tests. Locally,
-set `RECIPE_TEST_POSTGRES_URL` to a localhost test server with a role permitted to
-create databases, then run `pnpm test`. Do not use production credentials.
+PostgreSQL integration tests are opt-in locally and do not run in CI. To run them,
+set `RECIPE_TEST_POSTGRES_URL` to a disposable localhost PostgreSQL 17 server with a
+role permitted to create databases, then run `pnpm test`. Do not use production
+credentials.
 The suite creates a uniquely named database, generates tables from the Drizzle
 schema, recreates the old NOT NULL constraints, seeds a measured recipe, applies the
 migration twice, and checks create/read, update/read, explicit clearing, omitted
-PATCH ingredients, rollback after an invalid unit, and duplicate-ingredient behavior. It drops only its own database
-when finished. Without this variable, the PostgreSQL integration suite is skipped;
+PATCH ingredients, rollback after an invalid unit, and duplicate-ingredient
+behavior. It drops only its own database when finished. Without this variable, the PostgreSQL integration suite is skipped;
 the ordinary unit and route tests still run.
