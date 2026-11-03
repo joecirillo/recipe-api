@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   createRecipe,
-  getRecipe,
   deleteRecipe,
+  getRecipe,
   listRecipes,
   searchRecipes,
   updateRecipe,

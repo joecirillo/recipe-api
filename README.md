@@ -189,6 +189,13 @@ submitted ingredient rows; use `null` for an unknown measurement. PATCH omitting
 Responses preserve null quantity and return null unit name/abbreviation when there is
 no unit. Ingredient identity and at least one ingredient remain required.
 
+The existing unique constraint is retained: the same ingredient may appear in
+multiple rows with null units, so separate uses such as salt for pasta water and
+salt to taste remain distinct (including their notes). Rows with the same ingredient
+and the same non-null unit still conflict and roll back the save. This matches the
+existing live database's nullable-unit uniqueness behavior; measurements are not
+used to merge or discard ingredient rows.
+
 Read-only inspection of the configured database on November 2, 2026 found `unit_id`
 already nullable and `quantity` NOT NULL. Before deploying nullable saves, confirm
 the target database and apply `migrations/0084-nullable-ingredient-measurements.sql`
@@ -210,6 +217,6 @@ create databases, then run `pnpm test`. Do not use production credentials.
 The suite creates a uniquely named database, generates tables from the Drizzle
 schema, recreates the old NOT NULL constraints, seeds a measured recipe, applies the
 migration twice, and checks create/read, update/read, explicit clearing, omitted
-PATCH ingredients, and rollback after an invalid unit. It drops only its own database
+PATCH ingredients, rollback after an invalid unit, and duplicate-ingredient behavior. It drops only its own database
 when finished. Without this variable, the PostgreSQL integration suite is skipped;
 the ordinary unit and route tests still run.

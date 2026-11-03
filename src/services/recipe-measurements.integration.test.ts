@@ -124,6 +124,57 @@ describe.skipIf(!postgresUrl)('ingredient measurement database round trips', () 
     },
   )
 
+  it('preserves separate uses of the same ingredient when both units are null', async () => {
+    const base = recipeInput(null, null)
+    const input = {
+      ...base,
+      ingredients: [
+        { ...base.ingredients[0], notes: 'for pasta water' },
+        { ...base.ingredients[0], notes: 'to taste' },
+      ],
+    }
+    const created = await createRecipe(db, input)
+    const read = await getRecipe(db, created.id)
+    expect(read.ingredients).toHaveLength(2)
+    expect(read.ingredients).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: 'Salt',
+          quantity: null,
+          unitId: null,
+          notes: 'for pasta water',
+        }),
+        expect.objectContaining({ name: 'Salt', quantity: null, unitId: null, notes: 'to taste' }),
+      ]),
+    )
+    const updated = await updateRecipe(
+      db,
+      created.id,
+      { ingredients: input.ingredients },
+      {} as R2Bucket,
+      '',
+    )
+    expect(updated.ingredients).toHaveLength(2)
+    expect(updated.ingredients).toEqual(expect.arrayContaining(read.ingredients))
+  })
+
+  it('still rejects duplicate ingredients with the same non-null unit and rolls back', async () => {
+    const before = await getRecipe(db, measuredRecipeId)
+    const [ingredient] = recipeInput(200, unitId).ingredients
+    await expect(
+      updateRecipe(
+        db,
+        measuredRecipeId,
+        {
+          ingredients: [ingredient, ingredient],
+        },
+        {} as R2Bucket,
+        '',
+      ),
+    ).rejects.toThrow()
+    expect((await getRecipe(db, measuredRecipeId)).ingredients).toEqual(before.ingredients)
+  })
+
   it('rolls back a replacement with an unknown unit and preserves existing measurements', async () => {
     const before = await getRecipe(db, measuredRecipeId)
     await expect(
