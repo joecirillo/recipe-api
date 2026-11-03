@@ -1,14 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   createRecipe,
+  getRecipe,
   deleteRecipe,
   listRecipes,
   searchRecipes,
   updateRecipe,
-} from './recipeService'
+} from './recipe-service'
 import { recipeIngredients, recipeInstructionSteps, recipes } from '../db/schema'
 import { NotFoundError } from '../errors'
 import { deleteImage } from './image-service'
+import { resolveUnit } from './unit-service'
 
 vi.mock('./cuisine-service', () => ({
   resolveCuisine: vi.fn().mockResolvedValue({ id: 1, name: 'Italian' }),
@@ -235,7 +237,7 @@ function makeRecipeDb(finalRow: { id: number; [key: string]: unknown }) {
     transaction: vi.fn((cb: (tx: unknown) => Promise<unknown>) => cb(tx)),
     query: { recipes: { findFirst: vi.fn().mockResolvedValue(finalRow) } },
   } as unknown as Parameters<typeof createRecipe>[0] & Parameters<typeof updateRecipe>[1]
-  return { db, insertedValues, updatedValues }
+  return { db, tx, insertedValues, updatedValues }
 }
 
 function valuesFor(
@@ -518,5 +520,117 @@ describe('deleteRecipe', () => {
 
     errorSpy.mockRestore()
     vi.useRealTimers()
+  })
+})
+
+describe.each(['create', 'update'] as const)('%s nullable ingredient measurements', (operation) => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it.each([
+    { quantity: null, unitId: 1 },
+    { quantity: 200, unitId: null },
+    { quantity: null, unitId: null },
+    { quantity: 200, unitId: 1 },
+  ])('stores and returns $quantity quantity and $unitId unitId', async ({ quantity, unitId }) => {
+    const unit = unitId === null ? null : { id: 1, name: 'Gram', abbreviation: 'g' }
+    const ingredientRow = {
+      ingredient: { id: 10, name: 'Spaghetti' },
+      unitId,
+      unit,
+      quantity: quantity === null ? null : String(quantity),
+      notes: null,
+    }
+    const { db, insertedValues } = makeRecipeDb({ ...RECIPE_ROW, ingredients: [ingredientRow] })
+    const ingredients = [{ name: 'Spaghetti', quantity, unitId }]
+    const result =
+      operation === 'create'
+        ? await createRecipe(db, { ...CREATE_RECIPE_INPUT, ingredients })
+        : await updateRecipe(db, 1, { ingredients }, makeBucket(), PUBLIC_URL)
+    expect(valuesFor(insertedValues, recipeIngredients)).toEqual([
+      {
+        recipeId: 1,
+        ingredientId: 10,
+        quantity: quantity === null ? null : String(quantity),
+        unitId,
+        notes: null,
+      },
+    ])
+    expect(result.ingredients).toEqual([
+      {
+        id: 10,
+        name: 'Spaghetti',
+        quantity,
+        unitId,
+        unitName: unit?.name ?? null,
+        abbreviation: unit?.abbreviation ?? null,
+        notes: null,
+      },
+    ])
+    if (unitId === null) expect(resolveUnit).not.toHaveBeenCalled()
+    else expect(resolveUnit).toHaveBeenCalledWith(expect.anything(), unitId)
+  })
+
+  it('still rejects an unknown supplied unit', async () => {
+    vi.mocked(resolveUnit).mockRejectedValueOnce(new NotFoundError('Unit ID not found: 999'))
+    const { db, insertedValues } = makeRecipeDb(RECIPE_ROW)
+    const ingredients = [{ name: 'Spaghetti', quantity: null, unitId: 999 }]
+    const save =
+      operation === 'create'
+        ? createRecipe(db, { ...CREATE_RECIPE_INPUT, ingredients })
+        : updateRecipe(db, 1, { ingredients }, makeBucket(), PUBLIC_URL)
+    await expect(save).rejects.toThrow('Unit ID not found: 999')
+    expect(valuesFor(insertedValues, recipeIngredients)).toEqual([])
+  })
+})
+
+describe('getRecipe nullable measurements', () => {
+  it('keeps measured and unmeasured ingredient rows in the same response', async () => {
+    const { db } = makeRecipeDb({
+      ...RECIPE_ROW,
+      ingredients: [
+        {
+          ingredient: { id: 10, name: 'Salt' },
+          unitId: null,
+          unit: null,
+          quantity: null,
+          notes: 'to taste',
+        },
+        {
+          ingredient: { id: 11, name: 'Flour' },
+          unitId: 1,
+          unit: { name: 'Gram', abbreviation: 'g' },
+          quantity: '125.50',
+          notes: null,
+        },
+      ],
+    })
+    const result = await getRecipe(db, 1)
+    expect(result.ingredients).toEqual([
+      {
+        id: 10,
+        name: 'Salt',
+        quantity: null,
+        unitId: null,
+        unitName: null,
+        abbreviation: null,
+        notes: 'to taste',
+      },
+      {
+        id: 11,
+        name: 'Flour',
+        quantity: 125.5,
+        unitId: 1,
+        unitName: 'Gram',
+        abbreviation: 'g',
+        notes: null,
+      },
+    ])
+  })
+
+  it('leaves ingredient relations untouched when PATCH omits ingredients', async () => {
+    const { db, tx, insertedValues } = makeRecipeDb(RECIPE_ROW)
+    await updateRecipe(db, 1, { name: 'New Name' }, makeBucket(), PUBLIC_URL)
+    expect(valuesFor(insertedValues, recipeIngredients)).toEqual([])
+    expect(tx.delete).not.toHaveBeenCalled()
   })
 })

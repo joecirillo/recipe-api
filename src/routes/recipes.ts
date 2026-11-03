@@ -12,7 +12,7 @@ import {
   listRecipes,
   searchRecipes,
   updateRecipe,
-} from '../services/recipeService'
+} from '../services/recipe-service'
 
 export const recipeRouter = new Hono<{ Bindings: CloudflareBindings }>()
 
@@ -37,8 +37,8 @@ const IngredientInputSchema = z
       .min(2, 'Ingredient name must be between 2 and 255 characters.')
       .max(255, 'Ingredient name must be between 2 and 255 characters.')
       .optional(),
-    unitId: z.number().int().positive(),
-    quantity: z.number().positive(),
+    unitId: z.number().int().positive().nullable(),
+    quantity: z.number().positive().nullable(),
     notes: z.string().nullish(),
   })
   .refine((i) => i.id != null || (i.name?.trim().length ?? 0) > 0, {
