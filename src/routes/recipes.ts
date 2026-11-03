@@ -48,7 +48,11 @@ const IngredientInputSchema = z
 const TagInputSchema = z
   .object({
     id: z.number().int().positive().nullish(),
-    name: z.string().optional(),
+    name: z
+      .string()
+      .min(2, 'Tag name must be between 2 and 100 characters.')
+      .max(100, 'Tag name must be between 2 and 100 characters.')
+      .optional(),
   })
   .refine((t) => t.id != null || (t.name?.trim().length ?? 0) > 0, {
     message: 'Tag request must have either an ID or a name.',
