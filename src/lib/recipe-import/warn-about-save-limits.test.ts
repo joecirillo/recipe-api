@@ -92,3 +92,32 @@ describe('preview save limits', () => {
     })
   })
 })
+
+describe('preview save minimums', () => {
+  it.each([
+    [{ name: 'a' }, 'recipe.name'],
+    [{ recipeCuisine: 'a' }, 'recipe.cuisine.name'],
+    [{ recipeIngredient: ['a'] }, 'recipe.ingredients[0].name'],
+    [{ keywords: 'a, bb' }, 'recipe.tags[0].name'],
+    [{ prepTime: 'PT0M' }, 'recipe.preparationTime'],
+  ])('warns when %o is below the save minimum', (input, path) => {
+    expect(map(input).warnings).toEqual([
+      expect.objectContaining({ code: 'BELOW_SAVE_MINIMUM', field: path }),
+    ])
+  })
+
+  it('allows a zero cooking time, which save accepts', () => {
+    expect(map({ cookTime: 'PT0M' }).warnings).toEqual([])
+  })
+
+  it('does not warn at the minimum boundaries', () => {
+    const result = map({
+      name: 'ab',
+      recipeCuisine: 'ab',
+      recipeIngredient: ['ab'],
+      keywords: 'ab',
+      prepTime: 'PT1M',
+    })
+    expect(result.warnings).toEqual([])
+  })
+})

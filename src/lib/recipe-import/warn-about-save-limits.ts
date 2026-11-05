@@ -1,51 +1,72 @@
 import type { RecipeImportPreview, RecipeImportWarning } from '../types'
 
-export function warnAboutSaveLimits(recipe: RecipeImportPreview['recipe']): RecipeImportWarning[] {
-  const warnings: RecipeImportWarning[] = []
-  const textFields: [string, string | undefined, number][] = [
-    ['recipe.name', recipe.name, 150],
-    ['recipe.author', recipe.author, 255],
-    ['recipe.imageUrl', recipe.imageUrl, 255],
-    ['recipe.cuisine.name', recipe.cuisine?.name, 100],
-    ...(recipe.ingredients ?? []).map((ingredient, index): [string, string, number] => [
+type Bounds = [field: string, value: number | null | undefined, minimum: number, maximum: number]
+
+const MAX_SMALLINT = 32767
+
+function textBounds(recipe: RecipeImportPreview['recipe']): Bounds[] {
+  return [
+    ['recipe.name', recipe.name?.length, 2, 150],
+    ['recipe.author', recipe.author?.length, 0, 255],
+    ['recipe.imageUrl', recipe.imageUrl?.length, 0, 255],
+    ['recipe.cuisine.name', recipe.cuisine?.name.length, 2, 100],
+    ...(recipe.ingredients ?? []).map((ingredient, index): Bounds => [
       `recipe.ingredients[${index}].name`,
-      ingredient.name,
+      ingredient.name.length,
+      2,
       255,
     ]),
-    ...(recipe.tags ?? []).map((tag, index): [string, string, number] => [
+    ...(recipe.tags ?? []).map((tag, index): Bounds => [
       `recipe.tags[${index}].name`,
-      tag.name,
+      tag.name.length,
+      2,
       100,
     ]),
   ]
-  for (const [field, value, maximum] of textFields) {
-    if (value !== undefined && value.length > maximum) {
-      warnings.push({
-        code: 'SAVE_LIMIT_EXCEEDED',
-        field,
-        message: `This value exceeds the ${maximum}-character save limit. Shorten it before saving; the imported text has been preserved.`,
-      })
-    }
-  }
+}
 
-  const numberFields: [string, number | null | undefined][] = [
-    ['recipe.servings', recipe.servings],
-    ['recipe.cookingTime', recipe.cookingTime],
-    ['recipe.preparationTime', recipe.preparationTime],
-    ...(recipe.steps ?? []).map((step, index): [string, number] => [
+function numberBounds(recipe: RecipeImportPreview['recipe']): Bounds[] {
+  return [
+    ['recipe.servings', recipe.servings, 1, MAX_SMALLINT],
+    ['recipe.cookingTime', recipe.cookingTime, 0, MAX_SMALLINT],
+    ['recipe.preparationTime', recipe.preparationTime, 1, MAX_SMALLINT],
+    ...(recipe.steps ?? []).map((step, index): Bounds => [
       `recipe.steps[${index}].stepNumber`,
       step.stepNumber,
+      1,
+      MAX_SMALLINT,
     ]),
   ]
-  for (const [field, value] of numberFields) {
-    if (value != null && value > 32767) {
-      warnings.push({
-        code: 'SAVE_LIMIT_EXCEEDED',
-        field,
-        message:
-          'This value exceeds the save limit of 32767. Review it before saving; the imported number has been preserved.',
-      })
+}
+
+function checkBounds(bounds: Bounds[], unit: string): RecipeImportWarning[] {
+  return bounds.flatMap(([field, value, minimum, maximum]): RecipeImportWarning[] => {
+    if (value == null) return []
+    if (value > maximum) {
+      return [
+        {
+          code: 'SAVE_LIMIT_EXCEEDED',
+          field,
+          message: `This value exceeds the save limit of ${maximum}${unit}. Review it before saving; the imported value has been preserved.`,
+        },
+      ]
     }
-  }
-  return warnings
+    if (value < minimum) {
+      return [
+        {
+          code: 'BELOW_SAVE_MINIMUM',
+          field,
+          message: `This value is below the save minimum of ${minimum}${unit}. Review it before saving; the imported value has been preserved.`,
+        },
+      ]
+    }
+    return []
+  })
+}
+
+export function warnAboutSaveLimits(recipe: RecipeImportPreview['recipe']): RecipeImportWarning[] {
+  return [
+    ...checkBounds(textBounds(recipe), ' characters'),
+    ...checkBounds(numberBounds(recipe), ''),
+  ]
 }

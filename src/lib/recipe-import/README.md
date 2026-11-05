@@ -56,8 +56,8 @@ API; this preview does not change persistence or submit directly to `POST /recip
 Instructions become sequentially numbered steps with null tips. A single string
 is one step; string arrays and nested HowToSection/HowToStep structures retain
 their order. Markup is converted to text with block/line boundaries and decoded
-entities. Original ingredient strings remain raw text and must be rendered as
-text, not HTML. All preview strings, including decoded names, descriptions, and
+entities. Original ingredient strings remain raw source text, which may contain
+markup and entities, and must be rendered as text, not HTML. All preview strings, including decoded names, descriptions, and
 instructions, must be rendered as text rather than inserted with an HTML-rendering
 API. Decoded text can contain literal angle brackets; conversion to plain text is
 not an HTML-sanitization guarantee.
@@ -84,18 +84,19 @@ coerced to strings. If no count is interpretable, servings remain omitted.
 
 ## Save limits
 
-`SAVE_LIMIT_EXCEEDED` warnings preserve the imported value without truncation or
-numeric capping. They check the current save/API or database upper bounds:
-recipe name 150 characters; author/image URL/ingredient name 255; cuisine/tag
-name 100; servings, times, and step numbers 32767. The image limit applies after
-URL normalization. The recipe name limit is the API's stricter limit, not the
-255-character database column. Tag and step-number limits also protect against
-current gaps in save-route validation (tag validation is tracked in #78).
+`SAVE_LIMIT_EXCEEDED` and `BELOW_SAVE_MINIMUM` warnings preserve the imported
+value without truncation, padding, or numeric clamping. They mirror the current
+save schema bounds: recipe name 2–150 characters; ingredient name 2–255;
+cuisine/tag name 2–100; author and image URL at most 255; servings and prep time
+1–32767; cooking time 0–32767; step numbers at most 32767. The image limit
+applies after URL normalization. The recipe name limit is the API's stricter
+limit, not the 255-character database column.
 
-These warnings are not complete save validation. Required fields and minimum
-values (e.g. a `PT0M` prep time, one-character names) still need validation during review and
-by the save API. A warning-free preview is not necessarily ready to save. Keep
-these upper-bound checks aligned with future save-contract changes.
+These warnings are not complete save validation. Required fields that are
+missing (e.g. no cuisine or prep time) are left empty without a warning and
+still need validation during review and by the save API. A warning-free preview
+is not necessarily ready to save. Keep these bounds aligned with future
+save-contract changes.
 
 | Warning code          | Meaning                                                          |
 | --------------------- | ---------------------------------------------------------------- |
@@ -105,6 +106,7 @@ these upper-bound checks aligned with future save-contract changes.
 | `UNSUPPORTED_YIELD`   | One or more yield entries cannot be interpreted as servings.     |
 | `INVALID_IMAGE_URL`   | An image candidate was rejected; a later candidate may be used.  |
 | `SAVE_LIMIT_EXCEEDED` | An imported value exceeds a current save limit and needs review. |
+| `BELOW_SAVE_MINIMUM`  | An imported value is below a current save minimum.               |
 | `MULTIPLE_RECIPES`    | The first of multiple recipes was selected.                      |
 
 Missing/null fields and empty lists are left empty for review. Supplied invalid
