@@ -38,6 +38,7 @@ export function extractRecipeJsonLd(html: string): ExtractedRecipeJsonLd | null 
         if (isRecipe(object)) {
           recipe ??= object
           recipeCount++
+          continue
         }
         const children = Object.values(object)
         for (let index = children.length - 1; index >= 0; index--) pending.push(children[index])

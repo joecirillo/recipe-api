@@ -36,6 +36,19 @@ describe('extractRecipeJsonLd', () => {
     expect(extractRecipeJsonLd(html)).toEqual({ recipe, recipeCount: 3 })
   })
 
+  it.each(['isPartOf', 'hasPart', 'mainEntityOfPage'])(
+    'does not count a recipe nested under a matched recipe via %s',
+    (property) => {
+      const outer = { ...recipe, [property]: { ...recipe, name: 'Nested' } }
+      expect(extractRecipeJsonLd(script(outer))).toEqual({ recipe: outer, recipeCount: 1 })
+    },
+  )
+
+  it('still finds recipes wrapped in non-recipe nodes', () => {
+    const html = script({ '@type': 'WebPage', mainEntity: recipe, hasPart: [recipe] })
+    expect(extractRecipeJsonLd(html)).toEqual({ recipe, recipeCount: 2 })
+  })
+
   it('retains an incomplete first recipe instead of replacing it', () => {
     expect(extractRecipeJsonLd(script([{ '@type': 'Recipe' }, recipe]))).toEqual({
       recipe: { '@type': 'Recipe' },

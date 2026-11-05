@@ -71,7 +71,8 @@ function mapIngredients(
   }
   const ingredients = Array.isArray(value)
     ? value.flatMap((line, index) => {
-        if (typeof line !== 'string' || !line.trim()) {
+        const name = typeof line === 'string' ? plainText(line).replace(/\n/g, ' ') : ''
+        if (typeof line !== 'string' || !name) {
           reject(
             warnings,
             `recipeIngredient[${index}]`,
@@ -80,7 +81,7 @@ function mapIngredients(
           return []
         }
         originalIngredientLines.push(line)
-        return [{ id: null, name: line, quantity: null, unitId: null, notes: null }]
+        return [{ id: null, name, quantity: null, unitId: null, notes: null }]
       })
     : []
   return { ingredients, originalIngredientLines }

@@ -40,7 +40,7 @@ describe('mapSchemaOrgRecipe', () => {
         ],
         author: 'Jane Doe',
         imageUrl: 'https://example.com/images/bread.jpg',
-        ingredients: rawIngredients.map((name) => ({
+        ingredients: ['2 cups flour', 'Salt & pepper to taste'].map((name) => ({
           id: null,
           name,
           quantity: null,
@@ -131,6 +131,19 @@ describe('mapSchemaOrgRecipe', () => {
       ]),
     )
     expect(result.warnings.every((warning) => warning.message.length > 10)).toBe(true)
+  })
+
+  it('decodes and strips markup from ingredient names while keeping original lines raw', () => {
+    const lines = ['1 &amp; 1/2 cups flour', '<b>2</b> eggs', '<br>']
+    const result = preview({ recipeIngredient: lines })
+    expect(result.recipe.ingredients?.map((ingredient) => ingredient.name)).toEqual([
+      '1 & 1/2 cups flour',
+      '2 eggs',
+    ])
+    expect(result.source.originalIngredientLines).toEqual(lines.slice(0, 2))
+    expect(result.warnings).toContainEqual(
+      expect.objectContaining({ code: 'INVALID_FIELD', field: 'recipeIngredient[2]' }),
+    )
   })
 
   it('handles empty arrays and null fields', () => {

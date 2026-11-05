@@ -3,7 +3,9 @@
 `extractRecipeJsonLd(html)` parses HTML without fetching resources. It examines
 JSON-LD scripts in document order and visits objects and arrays depth-first in
 their JSON property/array order. The result contains the first Recipe object and
-the total `recipeCount`, or is `null` when none exists. Missing recipe fields do
+the total `recipeCount`, or is `null` when none exists. A matched Recipe's own
+properties are not searched, so a recipe nested under another (e.g. `isPartOf`,
+`hasPart`) is not counted again. Missing recipe fields do
 not disqualify a node. Malformed JSON scripts are skipped. The returned fields are
 untrusted `unknown` values; extraction does not validate recipe fields.
 
@@ -43,14 +45,13 @@ The preview has three properties:
   `recipe.ingredients[2].name`, so the consumer can highlight the affected row.
   Messages are display text; consumers should branch on codes, not messages.
 
-Ingredient rows contain `id: null`, the raw line as `name`, and null `quantity`,
-`unitId`, and `notes`. Null measurements are permitted by the preview contract;
-they are not extraction errors. The current save API and checked-in Drizzle
-schema still require quantity and unit. Accepting null measurements through save
-is tracked in [recipe-api#84](https://github.com/joecirillo/recipe-api/issues/84),
-including coordinated frontend changes for
-[foodies-finds#76](https://github.com/joecirillo/foodies-finds/issues/76);
-this preview does not change persistence or submit directly to `POST /recipes`.
+Ingredient rows contain `id: null`, the whole line converted to plain text as
+`name` (entities decoded, markup removed, whitespace collapsed to one line; no
+measurement parsing), and null `quantity`, `unitId`, and `notes`. A line that is
+empty after conversion is rejected with a warning. Null measurements are
+permitted by the preview contract and, since
+[recipe-api#84](https://github.com/joecirillo/recipe-api/issues/84), by the save
+API; this preview does not change persistence or submit directly to `POST /recipes`.
 
 Instructions become sequentially numbered steps with null tips. A single string
 is one step; string arrays and nested HowToSection/HowToStep structures retain
@@ -91,8 +92,8 @@ URL normalization. The recipe name limit is the API's stricter limit, not the
 255-character database column. Tag and step-number limits also protect against
 current gaps in save-route validation (tag validation is tracked in #78).
 
-These warnings are not complete save validation. Required fields, minimum values,
-and the current measurement requirements still need validation during review and
+These warnings are not complete save validation. Required fields and minimum
+values (e.g. a `PT0M` prep time, one-character names) still need validation during review and
 by the save API. A warning-free preview is not necessarily ready to save. Keep
 these upper-bound checks aligned with future save-contract changes.
 
