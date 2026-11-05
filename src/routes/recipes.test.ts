@@ -3,11 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { authMiddleware } from '../middleware/auth'
 import { errorHandler } from '../middleware/error-handler'
 import { NotFoundError } from '../errors'
-import * as recipeService from '../services/recipeService'
+import * as recipeService from '../services/recipe-service'
 import { recipeRouter } from './recipes'
 
 vi.mock('../db/client', () => ({ createDb: vi.fn(() => ({})) }))
-vi.mock('../services/recipeService')
+vi.mock('../services/recipe-service')
 
 type TestBindings = {
   USER_API_KEY: string
@@ -731,5 +731,102 @@ describe('DELETE /recipes/:id', () => {
     const res = await request('/recipes/abc', { method: 'DELETE', apiKey: ADMIN_KEY })
     expect(res.status).toBe(400)
     expect(vi.mocked(recipeService.deleteRecipe)).not.toHaveBeenCalled()
+  })
+})
+
+describe.each(['POST', 'PATCH'])('%s ingredient measurements', (method) => {
+  beforeEach(() => {
+    vi.mocked(recipeService.createRecipe).mockResolvedValue(FULL_RECIPE)
+    vi.mocked(recipeService.updateRecipe).mockResolvedValue(FULL_RECIPE)
+  })
+  afterEach(() => vi.clearAllMocks())
+
+  const saveIngredient = (measurement: Record<string, unknown>) =>
+    request(method === 'POST' ? '/recipes' : '/recipes/1', {
+      method,
+      body: {
+        ...(method === 'POST' ? SAVE_BODY : {}),
+        ingredients: [{ name: 'Spaghetti', ...measurement }],
+      },
+    })
+
+  it.each([
+    { quantity: null, unitId: 1 },
+    { quantity: 200, unitId: null },
+    { quantity: null, unitId: null },
+    { quantity: 200, unitId: 1 },
+  ])('preserves $quantity quantity and $unitId unitId', async (measurement) => {
+    const res = await saveIngredient(measurement)
+    expect(res.status).toBe(method === 'POST' ? 201 : 200)
+    const service = method === 'POST' ? recipeService.createRecipe : recipeService.updateRecipe
+    const input = vi.mocked(service).mock.calls[0][method === 'POST' ? 1 : 2]
+    expect(input).toMatchObject({ ingredients: [{ name: 'Spaghetti', ...measurement }] })
+  })
+
+  it.each([
+    { quantity: 0, unitId: null },
+    { quantity: -1, unitId: null },
+    { quantity: '2', unitId: null },
+    { quantity: null, unitId: 0 },
+    { quantity: null, unitId: -1 },
+    { quantity: null, unitId: 1.5 },
+    { quantity: null, unitId: '1' },
+    { quantity: null },
+    { unitId: null },
+  ])('rejects invalid or omitted measurements: %j', async (measurement) => {
+    const res = await saveIngredient(measurement)
+    expect(res.status).toBe(400)
+    expect(recipeService.createRecipe).not.toHaveBeenCalled()
+    expect(recipeService.updateRecipe).not.toHaveBeenCalled()
+  })
+})
+
+describe.each(['POST', 'PATCH'])('%s recipe tag validation', (method) => {
+  beforeEach(() => {
+    vi.mocked(recipeService.createRecipe).mockResolvedValue(FULL_RECIPE)
+    vi.mocked(recipeService.updateRecipe).mockResolvedValue(FULL_RECIPE)
+  })
+
+  afterEach(() => vi.clearAllMocks())
+
+  const saveTags = (tags: unknown[]) =>
+    request(method === 'POST' ? '/recipes' : '/recipes/1', {
+      method,
+      body: method === 'POST' ? { ...SAVE_BODY, tags } : { tags },
+    })
+
+  it.each(['', 'a', 'a'.repeat(101)])('rejects an invalid tag name (%s)', async (name) => {
+    const res = await saveTags([{ name }])
+    expect(res.status).toBe(400)
+    expect(await res.json()).toMatchObject({
+      message: 'Tag name must be between 2 and 100 characters.',
+    })
+    expect(recipeService.createRecipe).not.toHaveBeenCalled()
+    expect(recipeService.updateRecipe).not.toHaveBeenCalled()
+  })
+
+  it.each(['ab', 'a'.repeat(100)])('accepts a boundary-length tag (%s)', async (name) => {
+    const res = await saveTags([{ name }])
+    expect(res.status).toBe(method === 'POST' ? 201 : 200)
+  })
+
+  it('accepts an ID-only tag', async () => {
+    const res = await saveTags([{ id: 5 }])
+    expect(res.status).toBe(method === 'POST' ? 201 : 200)
+  })
+
+  it.each([{}, { name: '  ' }])('rejects a tag without an ID or nonblank name', async (tag) => {
+    const res = await saveTags([tag])
+    expect(res.status).toBe(400)
+    expect(await res.json()).toMatchObject({
+      message: 'Tag request must have either an ID or a name.',
+    })
+  })
+
+  it('validates a supplied name even when an ID is present', async () => {
+    const res = await saveTags([{ id: 5, name: 'a' }])
+    expect(res.status).toBe(400)
+    expect(recipeService.createRecipe).not.toHaveBeenCalled()
+    expect(recipeService.updateRecipe).not.toHaveBeenCalled()
   })
 })

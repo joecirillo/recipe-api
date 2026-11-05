@@ -16,10 +16,8 @@ export const recipeIngredients = recipeservice.table(
     ingredientId: bigint('ingredient_id', { mode: 'number' })
       .notNull()
       .references(() => ingredients.id),
-    unitId: bigint('unit_id', { mode: 'number' })
-      .notNull()
-      .references(() => units.id),
-    quantity: numeric('quantity', { precision: 8, scale: 2 }).notNull(),
+    unitId: bigint('unit_id', { mode: 'number' }).references(() => units.id),
+    quantity: numeric('quantity', { precision: 8, scale: 2 }),
     notes: varchar('notes', { length: 255 }),
   },
   (t) => [unique().on(t.recipeId, t.ingredientId, t.unitId)],

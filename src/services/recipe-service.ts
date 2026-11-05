@@ -27,8 +27,8 @@ export type CuisineInput = { id?: number | null; name?: string }
 export type IngredientInput = {
   id?: number | null
   name?: string
-  unitId: number
-  quantity: number
+  unitId: number | null
+  quantity: number | null
   notes?: string | null
 }
 export type TagInput = { id?: number | null; name?: string }
@@ -79,10 +79,10 @@ export type RecipeListItem = { id: number; name: string; imageUrl: string | null
 export type RecipeIngredientResponse = {
   id: number
   name: string
-  unitId: number
-  unitName: string
+  unitId: number | null
+  unitName: string | null
   abbreviation: string | null
-  quantity: number
+  quantity: number | null
   notes: string | null
 }
 
@@ -170,9 +170,9 @@ async function fetchFullRecipe(db: Db, id: number): Promise<RecipeResponse> {
       id: ri.ingredient.id,
       name: ri.ingredient.name,
       unitId: ri.unitId,
-      unitName: ri.unit.name,
-      abbreviation: ri.unit.abbreviation ?? null,
-      quantity: parseFloat(ri.quantity),
+      unitName: ri.unit?.name ?? null,
+      abbreviation: ri.unit?.abbreviation ?? null,
+      quantity: ri.quantity === null ? null : parseFloat(ri.quantity),
       notes: ri.notes ?? null,
     })),
     tags: row.tags.map((rt) => ({
@@ -301,13 +301,13 @@ export async function createRecipe(db: Db, input: RecipeSaveInput): Promise<Reci
     for (const ing of input.ingredients) {
       const [ingredient, unit] = await Promise.all([
         resolveIngredient(txDb, ing.id, ing.name),
-        resolveUnit(txDb, ing.unitId),
+        ing.unitId === null ? null : resolveUnit(txDb, ing.unitId),
       ])
       await tx.insert(recipeIngredients).values({
         recipeId: recipe.id,
         ingredientId: ingredient.id,
-        unitId: unit.id,
-        quantity: String(ing.quantity),
+        unitId: unit?.id ?? null,
+        quantity: ing.quantity === null ? null : String(ing.quantity),
         notes: ing.notes ?? null,
       })
     }
@@ -385,13 +385,13 @@ export async function updateRecipe(
       for (const ing of input.ingredients) {
         const [ingredient, unit] = await Promise.all([
           resolveIngredient(txDb, ing.id, ing.name),
-          resolveUnit(txDb, ing.unitId),
+          ing.unitId === null ? null : resolveUnit(txDb, ing.unitId),
         ])
         await tx.insert(recipeIngredients).values({
           recipeId: id,
           ingredientId: ingredient.id,
-          unitId: unit.id,
-          quantity: String(ing.quantity),
+          unitId: unit?.id ?? null,
+          quantity: ing.quantity === null ? null : String(ing.quantity),
           notes: ing.notes ?? null,
         })
       }

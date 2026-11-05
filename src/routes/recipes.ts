@@ -12,7 +12,7 @@ import {
   listRecipes,
   searchRecipes,
   updateRecipe,
-} from '../services/recipeService'
+} from '../services/recipe-service'
 
 export const recipeRouter = new Hono<{ Bindings: CloudflareBindings }>()
 
@@ -37,8 +37,8 @@ const IngredientInputSchema = z
       .min(2, 'Ingredient name must be between 2 and 255 characters.')
       .max(255, 'Ingredient name must be between 2 and 255 characters.')
       .optional(),
-    unitId: z.number().int().positive(),
-    quantity: z.number().positive(),
+    unitId: z.number().int().positive().nullable(),
+    quantity: z.number().positive().nullable(),
     notes: z.string().nullish(),
   })
   .refine((i) => i.id != null || (i.name?.trim().length ?? 0) > 0, {
@@ -48,7 +48,11 @@ const IngredientInputSchema = z
 const TagInputSchema = z
   .object({
     id: z.number().int().positive().nullish(),
-    name: z.string().optional(),
+    name: z
+      .string()
+      .min(2, 'Tag name must be between 2 and 100 characters.')
+      .max(100, 'Tag name must be between 2 and 100 characters.')
+      .optional(),
   })
   .refine((t) => t.id != null || (t.name?.trim().length ?? 0) > 0, {
     message: 'Tag request must have either an ID or a name.',
