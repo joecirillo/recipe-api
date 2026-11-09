@@ -16,7 +16,9 @@ Requests are rate limited to **60 per minute per API key**. Exceeding the limit 
 Recipe JSON-LD and returns an editable preview (`buildSuccess(200, 'Recipe parsed', preview)`). It never
 writes to the database; provenance (`sourceUrl`, plus the reviewed `author`) is persisted only when the
 client saves through `POST /recipes`, which accepts an optional `sourceUrl` (absolute HTTPS, ≤ 2048 chars)
-and returns it on every read. Requires a migration: `migrations/0080-recipe-source-url.sql`.
+and returns it on every read. `sourceUrl` is set at creation only; `PATCH /recipes/:id` does not accept it yet.
+
+**Deploy order: run `migrations/0080-recipe-source-url.sql` first, then deploy the API.** Reads now select `source_url`, so deploying the API before the column exists makes every recipe read fail. The migration is idempotent and adds a nullable column, so existing rows are untouched. Migrations are not applied automatically by the deployment workflow.
 
 **Auth and rate limiting.** The route sits behind the same app-level `X-Api-Key` middleware as every other
 route (`USER_API_KEY` or `ADMIN_API_KEY`), and both middlewares run before the handler, so rejected callers
@@ -36,6 +38,8 @@ resolved addresses or exception text. 401/429 keep the existing conventions.
   default: foodnetwork.com, seriouseats.com, simplehomeedit.com, allrecipes.com). This is a deliberate
   narrowing: Workers has no `dns.lookup` and no way to pin the TCP connection to a validated address, so
   arbitrary-domain fetching cannot be made DNS-rebinding-proof here, and this API does not claim it is.
+  Only list publishers you trust: subdomains are included, and a broad entry weakens this guarantee. An
+  explicitly empty value allows nothing (import disabled); leaving it unset uses the defaults.
 - Defence in depth on top of the allowlist: before each hop the hostname is resolved over DNS-over-HTTPS
   and the request is refused if **any** A/AAAA answer is non-public (loopback, private, link-local, CGNAT,
   reserved/multicast, documentation, IPv4-mapped IPv6, NAT64, 6to4, Teredo). This check and the connection
