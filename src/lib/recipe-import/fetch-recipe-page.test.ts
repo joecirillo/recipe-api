@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { fetchRecipePage, type Resolver } from './fetch-recipe-page'
+import { createDohResolver, fetchRecipePage, type Resolver } from './fetch-recipe-page'
 import { ImportError } from './import-error'
 import { DEFAULT_ALLOWED_HOSTS } from './validate-import-url'
 
@@ -226,5 +226,45 @@ describe('fetchRecipePage', () => {
     }
     expect(fetchImpl).not.toHaveBeenCalled()
     expect(resolve).not.toHaveBeenCalled()
+  })
+})
+
+describe('createDohResolver', () => {
+  it('looks up A and AAAA concurrently and merges the answers', async () => {
+    let inFlight = 0
+    let peak = 0
+    const fetchImpl = vi.fn<typeof fetch>(async (input) => {
+      inFlight++
+      peak = Math.max(peak, inFlight)
+      await new Promise((r) => setTimeout(r, 5))
+      inFlight--
+      const type = new URL(String(input)).searchParams.get('type')
+      return Response.json({
+        Answer:
+          type === 'A'
+            ? [
+                { type: 5, data: 'cname.example.' },
+                { type: 1, data: '151.101.1.1' },
+              ]
+            : [{ type: 28, data: '2606:4700::1111' }],
+      })
+    })
+    const addresses = await createDohResolver(fetchImpl)(
+      'allrecipes.com',
+      new AbortController().signal,
+    )
+    expect(peak).toBe(2)
+    expect(addresses.sort()).toEqual(['151.101.1.1', '2606:4700::1111'])
+  })
+
+  it('fails the whole lookup if either query fails', async () => {
+    const fetchImpl = vi.fn<typeof fetch>(async (input) =>
+      new URL(String(input)).searchParams.get('type') === 'A'
+        ? Response.json({ Answer: [] })
+        : new Response('', { status: 500 }),
+    )
+    await expect(
+      createDohResolver(fetchImpl)('allrecipes.com', new AbortController().signal),
+    ).rejects.toThrow()
   })
 })

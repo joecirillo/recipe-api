@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { ImportError } from './import-error'
-import { DEFAULT_ALLOWED_HOSTS, isPublicIp, validateImportUrl } from './validate-import-url'
+import {
+  DEFAULT_ALLOWED_HOSTS,
+  isPublicIp,
+  parseAllowedHosts,
+  validateImportUrl,
+} from './validate-import-url'
 
 const code = (fn: () => unknown) => {
   try {
@@ -77,4 +82,22 @@ describe('isPublicIp', () => {
     'treats %s as public',
     (ip) => expect(isPublicIp(ip)).toBe(true),
   )
+})
+
+describe('parseAllowedHosts', () => {
+  it('uses the defaults only when the variable is unset', () => {
+    expect(parseAllowedHosts(undefined)).toEqual(DEFAULT_ALLOWED_HOSTS)
+  })
+
+  it('parses, trims, lowercases and drops blanks', () => {
+    expect(parseAllowedHosts(' Example.com, ,b.org ')).toEqual(['example.com', 'b.org'])
+  })
+
+  it('allows nothing when explicitly set to empty', () => {
+    const hosts = parseAllowedHosts('')
+    expect(hosts).toEqual([])
+    expect(code(() => validateImportUrl('https://allrecipes.com/x', hosts))).toBe(
+      'SOURCE_NOT_ALLOWED',
+    )
+  })
 })

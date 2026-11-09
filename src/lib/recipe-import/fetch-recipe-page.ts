@@ -24,11 +24,13 @@ export type FetchedPage = { html: string; finalUrl: string }
 // Workers has no dns.lookup; DNS-over-HTTPS is the only way to see resolved addresses.
 export function createDohResolver(fetchImpl: typeof fetch = fetch): Resolver {
   return async (hostname, signal) => {
-    const addresses: string[] = []
-    for (const [type, code] of [
-      ['A', 1],
-      ['AAAA', 28],
-    ] as const) {
+    // A and AAAA run in parallel: each hop costs one round trip of DNS latency, not two.
+    const lookups = (
+      [
+        ['A', 1],
+        ['AAAA', 28],
+      ] as const
+    ).map(async ([type, code]) => {
       const res = await fetchImpl(
         `${DOH_ENDPOINT}?name=${encodeURIComponent(hostname)}&type=${type}`,
         {
@@ -38,9 +40,9 @@ export function createDohResolver(fetchImpl: typeof fetch = fetch): Resolver {
       )
       if (!res.ok) throw new Error('dns failure')
       const body = (await res.json()) as { Answer?: { type: number; data: string }[] }
-      for (const a of body.Answer ?? []) if (a.type === code) addresses.push(a.data)
-    }
-    return addresses
+      return (body.Answer ?? []).filter((a) => a.type === code).map((a) => a.data)
+    })
+    return (await Promise.all(lookups)).flat()
   }
 }
 

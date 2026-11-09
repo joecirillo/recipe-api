@@ -10,13 +10,14 @@ export const DEFAULT_ALLOWED_HOSTS = [
   'allrecipes.com',
 ]
 
+// Unset means "use the defaults". A set-but-empty value means "allow nothing", so an
+// operator can switch import off without a code change.
 export function parseAllowedHosts(raw: string | undefined): string[] {
-  if (!raw) return DEFAULT_ALLOWED_HOSTS
-  const hosts = raw
+  if (raw === undefined) return DEFAULT_ALLOWED_HOSTS
+  return raw
     .split(',')
     .map((h) => h.trim().toLowerCase())
     .filter(Boolean)
-  return hosts.length ? hosts : DEFAULT_ALLOWED_HOSTS
 }
 
 function parseIPv4(host: string): number[] | null {

@@ -12,8 +12,6 @@ export type ImportErrorCode =
 // Messages are deliberately generic: they never carry upstream bodies, resolved
 // addresses, or exception text.
 export class ImportError extends Error {
-  readonly statusCode = 400
-
   constructor(
     readonly code: ImportErrorCode,
     message: string,
