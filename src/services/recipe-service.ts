@@ -47,6 +47,7 @@ export type RecipeSaveInput = {
   tags?: TagInput[]
   author: string
   imageUrl?: string | null
+  sourceUrl?: string | null
 }
 
 export type RecipeUpdateInput = {
@@ -111,6 +112,7 @@ export type RecipeResponse = {
   cookingTime: number
   preparationTime: number
   imageUrl: string | null
+  sourceUrl: string | null
   createdAt: Date
   updatedAt: Date
   ingredients: RecipeIngredientResponse[]
@@ -164,6 +166,7 @@ async function fetchFullRecipe(db: Db, id: number): Promise<RecipeResponse> {
     cookingTime: row.cookingTime,
     preparationTime: row.preparationTime,
     imageUrl: row.imageUrl ?? null,
+    sourceUrl: row.sourceUrl ?? null,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     ingredients: row.ingredients.map((ri) => ({
@@ -293,6 +296,7 @@ export async function createRecipe(db: Db, input: RecipeSaveInput): Promise<Reci
         cookingTime: input.cookingTime,
         preparationTime: input.preparationTime,
         imageUrl: input.imageUrl ?? null,
+        sourceUrl: input.sourceUrl ?? null,
         createdAt: now,
         updatedAt: now,
       })

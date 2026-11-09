@@ -12,7 +12,10 @@
   ],
   "vars": {
     "R2_PUBLIC_URL": "https://cdn.foodiesfinds.com",
-    "R2_BUCKET_NAME": "recipe-images"
+    "R2_BUCKET_NAME": "recipe-images",
+    // Comma-separated publisher domains (subdomains included) allowed for recipe import.
+    // Omit to use the built-in default list.
+    "IMPORT_ALLOWED_HOSTS": "foodnetwork.com,seriouseats.com,simplehomeedit.com,allrecipes.com"
   },
   // "kv_namespaces": [
   //   {

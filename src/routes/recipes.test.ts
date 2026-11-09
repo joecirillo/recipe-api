@@ -43,6 +43,7 @@ const FULL_RECIPE: recipeService.RecipeResponse = {
   cookingTime: 10,
   preparationTime: 5,
   imageUrl: 'https://example.com/pasta.jpg',
+  sourceUrl: null,
   createdAt: new Date('2024-01-01T00:00:00Z'),
   updatedAt: new Date('2024-01-01T00:00:00Z'),
   ingredients: [
