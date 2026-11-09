@@ -2,6 +2,7 @@ import type { ErrorHandler } from 'hono'
 import { HTTPException } from 'hono/http-exception'
 import { ZodError } from 'zod'
 import { BadRequestError, DuplicateError, NotFoundError } from '../errors'
+import { ImportError } from '../lib/recipe-import/import-error'
 import { buildError } from '../lib/response'
 
 export const errorHandler: ErrorHandler = (err, c) => {
@@ -13,6 +14,10 @@ export const errorHandler: ErrorHandler = (err, c) => {
 
   if (err instanceof BadRequestError) {
     return c.json(buildError(400, err.message, path), 400)
+  }
+
+  if (err instanceof ImportError) {
+    return c.json(buildError(400, err.message, path, err.code), 400)
   }
 
   if (err instanceof DuplicateError) {

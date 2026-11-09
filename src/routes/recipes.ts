@@ -5,6 +5,11 @@ import { buildSuccess } from '../lib/response'
 import { BadRequestError } from '../errors'
 import { toStorageKey, withPublicImageUrl } from '../lib/image-url'
 import { requestLogger } from '../middleware/request-logger'
+import { extractRecipeJsonLd } from '../lib/recipe-import/extract-recipe-json-ld'
+import { fetchRecipePage } from '../lib/recipe-import/fetch-recipe-page'
+import { ImportError } from '../lib/recipe-import/import-error'
+import { mapSchemaOrgRecipe } from '../lib/recipe-import/map-schema-org-recipe'
+import { parseAllowedHosts } from '../lib/recipe-import/validate-import-url'
 import {
   createRecipe,
   deleteRecipe,
@@ -82,6 +87,21 @@ const RecipeSaveSchema = z.object({
   tags: z.array(TagInputSchema).optional().default([]),
   author: z.string().max(255).default(''),
   imageUrl: z.string().max(255).nullable().optional(),
+  // Provenance for imported recipes. Optional so manual creation is unchanged.
+  sourceUrl: z
+    .string()
+    .max(2048)
+    .refine((v) => /^https:\/\//i.test(v) && URL.canParse(v), {
+      message: 'Source URL must be an absolute HTTPS URL.',
+    })
+    .nullable()
+    .optional(),
+})
+
+// Shape-only check: the full policy (scheme, port, credentials, allowlist, DNS) is enforced
+// in fetchRecipePage so every redirect hop gets identical treatment and stable error codes.
+const ImportPreviewSchema = z.object({
+  url: z.string({ error: 'url is required.' }).min(1, 'url is required.').max(2048),
 })
 
 const RecipeUpdateSchema = z.object({
@@ -188,6 +208,31 @@ recipeRouter.post('/', requestLogger('recipe upload'), async (c) => {
       Location: `/recipes/${data.id}`,
     },
   )
+})
+
+// Read-only: fetches and parses a page, never touches the database. Auth and rate limiting
+// run as app-level middleware before this handler, so rejected callers trigger no fetch.
+recipeRouter.post('/import-preview', requestLogger('recipe import preview'), async (c) => {
+  let body: unknown
+  try {
+    body = await c.req.json()
+  } catch {
+    throw new ImportError('INVALID_URL', 'Request body must be JSON with a "url" field.')
+  }
+  const parsed = ImportPreviewSchema.safeParse(body)
+  if (!parsed.success) {
+    throw new ImportError('INVALID_URL', 'Request body must include a "url" string.')
+  }
+
+  const page = await fetchRecipePage(parsed.data.url, {
+    allowedHosts: parseAllowedHosts(c.env.IMPORT_ALLOWED_HOSTS),
+  })
+  const extracted = extractRecipeJsonLd(page.html)
+  if (!extracted) {
+    throw new ImportError('NO_RECIPE_FOUND', 'No recipe data was found on that page.')
+  }
+  const preview = mapSchemaOrgRecipe(extracted, { sourceUrl: page.finalUrl })
+  return c.json(buildSuccess(200, 'Recipe parsed', preview), 200)
 })
 
 recipeRouter.get('/:id', async (c) => {

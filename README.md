@@ -10,6 +10,44 @@ Requests are rate limited to **60 per minute per API key**. Exceeding the limit 
 
 > **Note:** The current implementation uses an in-memory fixed window counter. This does not work correctly on Cloudflare Workers — each isolate maintains its own memory with no shared state, so the effective limit per key will be higher than 60 when requests are spread across instances. To enforce the limit globally, replace the in-memory store with a [Cloudflare Rate Limiting binding](https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/) or a Durable Object.
 
+## Recipe import preview
+
+`POST /recipes/import-preview` with `{ "url": "https://…" }` fetches a recipe page, extracts schema.org
+Recipe JSON-LD and returns an editable preview (`buildSuccess(200, 'Recipe parsed', preview)`). It never
+writes to the database; provenance (`sourceUrl`, plus the reviewed `author`) is persisted only when the
+client saves through `POST /recipes`, which accepts an optional `sourceUrl` (absolute HTTPS, ≤ 2048 chars)
+and returns it on every read. Requires a migration: `migrations/0080-recipe-source-url.sql`.
+
+**Auth and rate limiting.** The route sits behind the same app-level `X-Api-Key` middleware as every other
+route (`USER_API_KEY` or `ADMIN_API_KEY`), and both middlewares run before the handler, so rejected callers
+trigger no outbound request. The rate limit key is the **API key** (an API client, not a user or IP). The
+foodies-finds server actions all call with one server-side key, so every end user shares one 60/min bucket
+(per isolate; see the rate limiting note above).
+
+**Error codes.** Failures return the standard error envelope plus a stable `code`, all with HTTP 400:
+`INVALID_URL`, `SOURCE_NOT_ALLOWED`, `FETCH_FAILED`, `SOURCE_HTTP_ERROR`, `FETCH_TIMEOUT`, `SOURCE_BLOCKED`,
+`RESPONSE_TOO_LARGE`, `UNSUPPORTED_CONTENT_TYPE`, `NO_RECIPE_FOUND`. Messages never include upstream bodies,
+resolved addresses or exception text. 401/429 keep the existing conventions.
+
+**Safe outbound fetching: design and its limits.**
+
+- HTTPS only, port 443 only, no credentials, no literal IPs, no single-label/`localhost` hosts.
+- **Supported-source allowlist** (`IMPORT_ALLOWED_HOSTS` var in `wrangler.jsonc`, subdomains included;
+  default: foodnetwork.com, seriouseats.com, simplehomeedit.com, allrecipes.com). This is a deliberate
+  narrowing: Workers has no `dns.lookup` and no way to pin the TCP connection to a validated address, so
+  arbitrary-domain fetching cannot be made DNS-rebinding-proof here, and this API does not claim it is.
+- Defence in depth on top of the allowlist: before each hop the hostname is resolved over DNS-over-HTTPS
+  and the request is refused if **any** A/AAAA answer is non-public (loopback, private, link-local, CGNAT,
+  reserved/multicast, documentation, IPv4-mapped IPv6, NAT64, 6to4, Teredo). This check and the connection
+  are still two separate lookups; the allowlist is what bounds that check-to-fetch gap.
+- Redirects are never followed automatically: at most 3 are followed manually, each re-validated with the
+  same URL, allowlist and DNS policy.
+- One 10 s deadline covers DNS, redirects and body consumption; the body is streamed with a 5 MiB cap
+  (Content-Length is ignored) and cancelled on overflow or timeout. Only `text/html` /
+  `application/xhtml+xml` is accepted.
+- Requests carry only `User-Agent: foodies-finds-recipe-import/1.0` and `Accept`; the API key and any
+  cookies are never forwarded. Auth challenges and paywalls are reported as `SOURCE_BLOCKED`, not bypassed.
+
 ## Environment variables
 
 Worker secrets are injected at runtime via Cloudflare secrets (production) or `.dev.vars` (local). Drizzle runs outside the Worker; the `db:*` scripts explicitly load `.dev.vars` into its process environment.

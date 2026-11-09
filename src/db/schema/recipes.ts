@@ -20,6 +20,7 @@ export const recipes = recipeservice.table('recipes', {
   cookingTime: smallint('cooking_time').notNull(),
   preparationTime: smallint('preparation_time').notNull(),
   imageUrl: varchar('image_url', { length: 255 }),
+  sourceUrl: varchar('source_url', { length: 2048 }),
   createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull(),
   updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull(),
 })
