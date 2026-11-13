@@ -83,13 +83,14 @@ async function readBody(res: Response, maxBytes: number, contentType: string): P
 const BLOCKED_STATUSES = new Set([401, 402, 403])
 
 function classifyStatus(res: Response): ImportError {
-  if (res.status === 429) {
+  const isChallenge = res.headers.get('cf-mitigated') === 'challenge'
+  if (res.status === 429 && !isChallenge) {
     return new ImportError(
       'SOURCE_BLOCKED',
       'The site is limiting imports right now. Try again later, or add the recipe manually.',
     )
   }
-  if (BLOCKED_STATUSES.has(res.status) || res.headers.get('cf-mitigated') === 'challenge') {
+  if (BLOCKED_STATUSES.has(res.status) || isChallenge) {
     return new ImportError(
       'SOURCE_BLOCKED',
       "This site doesn't allow automatic recipe imports. Add the recipe manually instead.",

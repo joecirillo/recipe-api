@@ -143,7 +143,7 @@ describe('fetchRecipePage', () => {
   it.each([
     [402, "doesn't allow automatic recipe imports"],
     [403, "doesn't allow automatic recipe imports"],
-    [429, 'Try again later'],
+    [429, 'Try again later, or add the recipe manually'],
   ])('tells the user what to do after an upstream %i', async (status, wording) => {
     const fetchImpl = vi.fn<typeof fetch>(async () => new Response('', { status }))
     try {
@@ -159,6 +159,19 @@ describe('fetchRecipePage', () => {
       async () => new Response('', { status: 503, headers: { 'cf-mitigated': 'challenge' } }),
     )
     expect(await failure(run('https://allrecipes.com/a', fetchImpl))).toBe('SOURCE_BLOCKED')
+  })
+
+  it('treats a rate-limit response that is really a Cloudflare challenge as a refusal', async () => {
+    const fetchImpl = vi.fn<typeof fetch>(
+      async () => new Response('', { status: 429, headers: { 'cf-mitigated': 'challenge' } }),
+    )
+    try {
+      await run('https://allrecipes.com/a', fetchImpl)
+      expect.unreachable()
+    } catch (e) {
+      expect((e as ImportError).code).toBe('SOURCE_BLOCKED')
+      expect((e as ImportError).message).toContain("doesn't allow automatic recipe imports")
+    }
   })
 
   it('rejects unsupported content types', async () => {
