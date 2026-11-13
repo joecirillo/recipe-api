@@ -124,6 +124,7 @@ describe('fetchRecipePage', () => {
     [403, 'SOURCE_BLOCKED'],
     [429, 'SOURCE_BLOCKED'],
     [401, 'SOURCE_BLOCKED'],
+    [402, 'SOURCE_BLOCKED'],
     [404, 'SOURCE_HTTP_ERROR'],
     [500, 'SOURCE_HTTP_ERROR'],
   ])('maps upstream %i to %s without leaking the body', async (status, expected) => {

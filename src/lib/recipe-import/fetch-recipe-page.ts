@@ -80,14 +80,14 @@ async function readBody(res: Response, maxBytes: number, contentType: string): P
   }
 }
 
+const BLOCKED_STATUSES = new Set([401, 402, 403, 429])
+
 function classifyStatus(res: Response): ImportError {
-  if (
-    res.status === 401 ||
-    res.status === 403 ||
-    res.status === 429 ||
-    res.headers.get('cf-mitigated') === 'challenge'
-  ) {
-    return new ImportError('SOURCE_BLOCKED', 'The source site blocked automated access.')
+  if (BLOCKED_STATUSES.has(res.status) || res.headers.get('cf-mitigated') === 'challenge') {
+    return new ImportError(
+      'SOURCE_BLOCKED',
+      "This site doesn't allow automatic recipe imports. Add the recipe manually instead.",
+    )
   }
   return new ImportError('SOURCE_HTTP_ERROR', `The source site returned an error (${res.status}).`)
 }
