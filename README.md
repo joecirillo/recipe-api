@@ -52,7 +52,8 @@ resolved addresses or exception text. 401/429 keep the existing conventions.
 - Requests carry only `User-Agent: foodies-finds-recipe-import/1.0` and `Accept`; the API key and any
   cookies are never forwarded. Auth challenges and paywalls are reported as `SOURCE_BLOCKED`, not bypassed:
   upstream 401, 402 (Payment Required, used by pay-per-crawl paywalls), 403 and 429, plus Cloudflare
-  `cf-mitigated: challenge` responses.
+  `cf-mitigated: challenge` responses. The message tells the user to add the recipe manually; for 429 it
+  also suggests trying again later, since rate limits are usually temporary.
 
 ## Environment variables
 

@@ -140,6 +140,20 @@ describe('fetchRecipePage', () => {
     }
   })
 
+  it.each([
+    [402, "doesn't allow automatic recipe imports"],
+    [403, "doesn't allow automatic recipe imports"],
+    [429, 'Try again later'],
+  ])('tells the user what to do after an upstream %i', async (status, wording) => {
+    const fetchImpl = vi.fn<typeof fetch>(async () => new Response('', { status }))
+    try {
+      await run('https://allrecipes.com/a', fetchImpl)
+      expect.unreachable()
+    } catch (e) {
+      expect((e as ImportError).message).toContain(wording)
+    }
+  })
+
   it('treats a Cloudflare challenge as blocked', async () => {
     const fetchImpl = vi.fn<typeof fetch>(
       async () => new Response('', { status: 503, headers: { 'cf-mitigated': 'challenge' } }),
