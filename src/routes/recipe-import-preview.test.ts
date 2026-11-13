@@ -161,6 +161,20 @@ describe('POST /recipes/import-preview', () => {
     expect(text).not.toContain('SECRET')
   })
 
+  it('reports a pay-per-crawl 402 as SOURCE_BLOCKED with an actionable message', async () => {
+    pageResponse = () =>
+      new Response('Payment required SECRET', {
+        status: 402,
+        headers: { 'crawler-price': 'USD 0.01' },
+      })
+    const res = await post({ url: 'https://allrecipes.com/r' })
+    const body = await json(res)
+    expect(res.status).toBe(400)
+    expect(body.code).toBe('SOURCE_BLOCKED')
+    expect(body.message).toContain('Add the recipe manually')
+    expect(JSON.stringify(body)).not.toContain('SECRET')
+  })
+
   it('does not forward the API key to the source site', async () => {
     await post({ url: 'https://allrecipes.com/r' })
     const pageCall = fetchMock.mock.calls.find(([u]) => !String(u).includes('cloudflare-dns'))!
