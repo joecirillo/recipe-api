@@ -34,9 +34,13 @@ resolved addresses or exception text. 401/429 keep the existing conventions.
 **Safe outbound fetching: design and its limits.**
 
 - HTTPS only, port 443 only, no credentials, no literal IPs, no single-label/`localhost` hosts.
-- **Supported-source allowlist** (`IMPORT_ALLOWED_HOSTS` var in `wrangler.jsonc`, subdomains included;
-  default: foodnetwork.com, simplehomeedit.com; Allrecipes and Serious Eats were removed because their
-  publisher returned 402 Payment Required to the importer in testing). This is a deliberate
+- **Supported-source allowlist** (`IMPORT_ALLOWED_HOSTS` var in `wrangler.jsonc`, subdomains included).
+  The default lists sites whose recipe pages imported successfully in live testing: foodnetwork.com,
+  simplehomeedit.com, bbcgoodfood.com, budgetbytes.com, recipetineats.com, pinchofyum.com,
+  sallysbakingaddiction.com, loveandlemons.com, tasteofhome.com, kingarthurbaking.com, bonappetit.com and
+  cooking.nytimes.com (not all of nytimes.com). Allrecipes and Serious Eats are excluded because their
+  publisher returned 402 Payment Required to the importer. Keep `DEFAULT_ALLOWED_HOSTS` in
+  `validate-import-url.ts` in sync with the var. This is a deliberate
   narrowing: Workers has no `dns.lookup` and no way to pin the TCP connection to a validated address, so
   arbitrary-domain fetching cannot be made DNS-rebinding-proof here, and this API does not claim it is.
   Only list publishers you trust: subdomains are included, and a broad entry weakens this guarantee. An

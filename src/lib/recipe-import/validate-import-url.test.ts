@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { ImportError } from './import-error'
 import {
@@ -22,6 +23,29 @@ describe('validateImportUrl', () => {
   it('accepts allowlisted https URLs, with subdomains and explicit 443', () => {
     expect(check('https://www.foodnetwork.com/recipe/1/x/')).toBeNull()
     expect(check('https://simplehomeedit.com:443/x')).toBeNull()
+  })
+
+  it.each([
+    'https://www.bbcgoodfood.com/recipes/easy-pancakes',
+    'https://www.budgetbytes.com/one-pot-creamy-cajun-chicken-pasta/',
+    'https://www.recipetineats.com/chicken-chasseur/',
+    'https://pinchofyum.com/the-best-soft-chocolate-chip-cookies',
+    'https://sallysbakingaddiction.com/chewy-chocolate-chip-cookies/',
+    'https://www.loveandlemons.com/guacamole-recipe/',
+    'https://www.tasteofhome.com/recipes/favorite-chicken-potpie/',
+    'https://www.kingarthurbaking.com/recipes/chocolate-chip-cookies-recipe',
+    'https://www.bonappetit.com/recipe/bas-best-chocolate-chip-cookies',
+    'https://cooking.nytimes.com/recipes/1015819-chocolate-chip-cookies',
+  ])('allows a tested recipe site by default: %s', (u) => expect(check(u)).toBeNull())
+
+  it('keeps the wrangler.jsonc allowlist in sync with the code default', () => {
+    const wrangler = readFileSync(new URL('../../../wrangler.jsonc', import.meta.url), 'utf8')
+    const configured = /"IMPORT_ALLOWED_HOSTS":\s*"([^"]*)"/.exec(wrangler)?.[1]
+    expect(parseAllowedHosts(configured)).toEqual(DEFAULT_ALLOWED_HOSTS)
+  })
+
+  it('allows only the NYT Cooking subdomain, not all of nytimes.com', () => {
+    expect(check('https://www.nytimes.com/2026/11/17/dining/x.html')).toBe('SOURCE_NOT_ALLOWED')
   })
 
   it.each(['https://www.allrecipes.com/recipe/1/x/', 'https://www.seriouseats.com/x'])(
