@@ -3,12 +3,7 @@ import { ImportError } from './import-error'
 // Initial supported-source policy. Workers cannot pin the TCP connection to a validated
 // address (no dns.lookup, no custom connect), so arbitrary-domain fetching cannot be made
 // rebinding-proof. We narrow to named publishers instead; see README "Recipe import".
-export const DEFAULT_ALLOWED_HOSTS = [
-  'foodnetwork.com',
-  'seriouseats.com',
-  'simplehomeedit.com',
-  'allrecipes.com',
-]
+export const DEFAULT_ALLOWED_HOSTS = ['foodnetwork.com', 'simplehomeedit.com']
 
 // Unset means "use the defaults". A set-but-empty value means "allow nothing", so an
 // operator can switch import off without a code change.

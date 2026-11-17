@@ -35,7 +35,8 @@ resolved addresses or exception text. 401/429 keep the existing conventions.
 
 - HTTPS only, port 443 only, no credentials, no literal IPs, no single-label/`localhost` hosts.
 - **Supported-source allowlist** (`IMPORT_ALLOWED_HOSTS` var in `wrangler.jsonc`, subdomains included;
-  default: foodnetwork.com, seriouseats.com, simplehomeedit.com, allrecipes.com). This is a deliberate
+  default: foodnetwork.com, simplehomeedit.com; Allrecipes and Serious Eats were removed because their
+  publisher returned 402 Payment Required to the importer in testing). This is a deliberate
   narrowing: Workers has no `dns.lookup` and no way to pin the TCP connection to a validated address, so
   arbitrary-domain fetching cannot be made DNS-rebinding-proof here, and this API does not claim it is.
   Only list publishers you trust: subdomains are included, and a broad entry weakens this guarantee. An

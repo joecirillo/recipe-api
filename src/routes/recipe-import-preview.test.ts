@@ -77,24 +77,24 @@ afterEach(() => vi.unstubAllGlobals())
 
 describe('POST /recipes/import-preview', () => {
   it('returns a preview resolved against the final URL, with no database access', async () => {
-    const res = await post({ url: 'https://www.allrecipes.com/recipe/1/soup/' })
+    const res = await post({ url: 'https://www.foodnetwork.com/recipe/1/soup/' })
     expect(res.status).toBe(200)
     const body = await json(res)
     expect(body.message).toBe('Recipe parsed')
     expect(body.data.recipe.name).toBe('Tomato Soup')
-    expect(body.data.recipe.imageUrl).toBe('https://www.allrecipes.com/img/soup.jpg')
-    expect(body.data.source.sourceUrl).toBe('https://www.allrecipes.com/recipe/1/soup/')
+    expect(body.data.recipe.imageUrl).toBe('https://www.foodnetwork.com/img/soup.jpg')
+    expect(body.data.source.sourceUrl).toBe('https://www.foodnetwork.com/recipe/1/soup/')
     expect(body.data.source.originalAuthor).toBe('Pat Cook')
     expect(createDb).not.toHaveBeenCalled()
     expect(vi.mocked(recipeService.createRecipe)).not.toHaveBeenCalled()
   })
 
   it('accepts the admin key as well as the user key', async () => {
-    expect((await post({ url: 'https://allrecipes.com/r' }, 'admin')).status).toBe(200)
+    expect((await post({ url: 'https://foodnetwork.com/r' }, 'admin')).status).toBe(200)
   })
 
   it.each([null, 'wrong'])('returns 401 and fetches nothing for key %s', async (key) => {
-    const res = await post({ url: 'https://allrecipes.com/r' }, key)
+    const res = await post({ url: 'https://foodnetwork.com/r' }, key)
     expect(res.status).toBe(401)
     expect(outbound()).toBe(0)
   })
@@ -107,7 +107,7 @@ describe('POST /recipes/import-preview', () => {
         {
           method: 'POST',
           headers: { 'X-Api-Key': 'rate-limit-key-user', 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url: 'https://allrecipes.com/r' }),
+          body: JSON.stringify({ url: 'https://foodnetwork.com/r' }),
         },
         { ...ENV, USER_API_KEY: 'rate-limit-key-user' },
       )
@@ -122,8 +122,8 @@ describe('POST /recipes/import-preview', () => {
     ['missing url', {}],
     ['non-string url', { url: 5 }],
     ['relative url', { url: '/recipe' }],
-    ['http url', { url: 'http://allrecipes.com/r' }],
-    ['credentials', { url: 'https://a:b@allrecipes.com/r' }],
+    ['http url', { url: 'http://foodnetwork.com/r' }],
+    ['credentials', { url: 'https://a:b@foodnetwork.com/r' }],
   ])('rejects %s with INVALID_URL before any fetch', async (_n, body) => {
     const res = await post(body)
     expect(res.status).toBe(400)
@@ -134,7 +134,7 @@ describe('POST /recipes/import-preview', () => {
   it.each([
     'https://127.0.0.1/',
     'https://[::1]/',
-    'https://allrecipes.com:8443/',
+    'https://foodnetwork.com:8443/',
     'https://example.org/',
   ])('rejects %s as SOURCE_NOT_ALLOWED with a generic message', async (url) => {
     const res = await post({ url })
@@ -147,14 +147,14 @@ describe('POST /recipes/import-preview', () => {
 
   it('returns NO_RECIPE_FOUND (400) for pages without Recipe markup', async () => {
     pageResponse = () => new Response('<html></html>', { headers: { 'content-type': 'text/html' } })
-    const res = await post({ url: 'https://allrecipes.com/r' })
+    const res = await post({ url: 'https://foodnetwork.com/r' })
     expect(res.status).toBe(400)
     expect((await json(res)).code).toBe('NO_RECIPE_FOUND')
   })
 
   it('returns SOURCE_BLOCKED without exposing upstream content', async () => {
     pageResponse = () => new Response('<html>Access denied SECRET</html>', { status: 403 })
-    const res = await post({ url: 'https://allrecipes.com/r' })
+    const res = await post({ url: 'https://foodnetwork.com/r' })
     const text = await res.text()
     expect(res.status).toBe(400)
     expect(text).toContain('SOURCE_BLOCKED')
@@ -167,7 +167,7 @@ describe('POST /recipes/import-preview', () => {
         status: 402,
         headers: { 'crawler-price': 'USD 0.01' },
       })
-    const res = await post({ url: 'https://allrecipes.com/r' })
+    const res = await post({ url: 'https://foodnetwork.com/r' })
     const body = await json(res)
     expect(res.status).toBe(400)
     expect(body.code).toBe('SOURCE_BLOCKED')
@@ -176,7 +176,7 @@ describe('POST /recipes/import-preview', () => {
   })
 
   it('does not forward the API key to the source site', async () => {
-    await post({ url: 'https://allrecipes.com/r' })
+    await post({ url: 'https://foodnetwork.com/r' })
     const pageCall = fetchMock.mock.calls.find(([u]) => !String(u).includes('cloudflare-dns'))!
     const headers = pageCall[1]!.headers as Record<string, string>
     expect(Object.keys(headers).map((h) => h.toLowerCase())).not.toContain('x-api-key')
@@ -210,13 +210,17 @@ describe('provenance on save', () => {
     )
 
   it('passes sourceUrl and author through to createRecipe', async () => {
-    vi.mocked(recipeService.createRecipe).mockResolvedValue(saved('https://allrecipes.com/r'))
-    const res = await create({ ...SAVE, author: 'Pat Cook', sourceUrl: 'https://allrecipes.com/r' })
+    vi.mocked(recipeService.createRecipe).mockResolvedValue(saved('https://foodnetwork.com/r'))
+    const res = await create({
+      ...SAVE,
+      author: 'Pat Cook',
+      sourceUrl: 'https://foodnetwork.com/r',
+    })
     expect(res.status).toBe(201)
-    expect((await json(res)).data.sourceUrl).toBe('https://allrecipes.com/r')
+    expect((await json(res)).data.sourceUrl).toBe('https://foodnetwork.com/r')
     expect(vi.mocked(recipeService.createRecipe).mock.calls[0]![1]).toMatchObject({
       author: 'Pat Cook',
-      sourceUrl: 'https://allrecipes.com/r',
+      sourceUrl: 'https://foodnetwork.com/r',
     })
   })
 
