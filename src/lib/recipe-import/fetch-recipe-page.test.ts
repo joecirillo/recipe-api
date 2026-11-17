@@ -38,8 +38,8 @@ const run = (
 describe('fetchRecipePage', () => {
   it('returns html and the final URL, sending only the identifying headers', async () => {
     const fetchImpl = vi.fn<typeof fetch>(async () => html('<p>ok</p>'))
-    const page = await run('https://allrecipes.com/r/1', fetchImpl)
-    expect(page).toEqual({ html: '<p>ok</p>', finalUrl: 'https://allrecipes.com/r/1' })
+    const page = await run('https://foodnetwork.com/r/1', fetchImpl)
+    expect(page).toEqual({ html: '<p>ok</p>', finalUrl: 'https://foodnetwork.com/r/1' })
     const init = fetchImpl.mock.calls[0]![1]!
     expect(init.redirect).toBe('manual')
     const headers = init.headers as Record<string, string>
@@ -51,25 +51,25 @@ describe('fetchRecipePage', () => {
       .fn<typeof fetch>()
       .mockResolvedValueOnce(redirect('/moved'))
       .mockResolvedValueOnce(html())
-    const page = await run('https://allrecipes.com/a', fetchImpl)
-    expect(page.finalUrl).toBe('https://allrecipes.com/moved')
+    const page = await run('https://foodnetwork.com/a', fetchImpl)
+    expect(page.finalUrl).toBe('https://foodnetwork.com/moved')
   })
 
   it('rejects a redirect to a blocked destination without requesting it', async () => {
     for (const target of [
       'https://169.254.169.254/latest',
-      'http://allrecipes.com/x',
+      'http://foodnetwork.com/x',
       'https://evil.com/',
     ]) {
       const fetchImpl = vi.fn<typeof fetch>(async () => redirect(target))
-      expect(await failure(run('https://allrecipes.com/a', fetchImpl))).toBe('SOURCE_NOT_ALLOWED')
+      expect(await failure(run('https://foodnetwork.com/a', fetchImpl))).toBe('SOURCE_NOT_ALLOWED')
       expect(fetchImpl).toHaveBeenCalledTimes(1)
     }
   })
 
   it('enforces the redirect limit and loops', async () => {
-    const fetchImpl = vi.fn<typeof fetch>(async () => redirect('https://allrecipes.com/loop'))
-    expect(await failure(run('https://allrecipes.com/loop', fetchImpl))).toBe('SOURCE_HTTP_ERROR')
+    const fetchImpl = vi.fn<typeof fetch>(async () => redirect('https://foodnetwork.com/loop'))
+    expect(await failure(run('https://foodnetwork.com/loop', fetchImpl))).toBe('SOURCE_HTTP_ERROR')
     expect(fetchImpl).toHaveBeenCalledTimes(4) // initial + 3 redirects
   })
 
@@ -81,7 +81,7 @@ describe('fetchRecipePage', () => {
       ['::ffff:127.0.0.1'],
     ]) {
       const code = await failure(
-        run('https://allrecipes.com/a', fetchImpl, { resolve: async () => answers }),
+        run('https://foodnetwork.com/a', fetchImpl, { resolve: async () => answers }),
       )
       expect(code).toBe('SOURCE_NOT_ALLOWED')
     }
@@ -93,8 +93,8 @@ describe('fetchRecipePage', () => {
       .fn<Resolver>()
       .mockResolvedValueOnce(['151.101.1.1'])
       .mockResolvedValueOnce(['127.0.0.1'])
-    const fetchImpl = vi.fn<typeof fetch>(async () => redirect('https://www.allrecipes.com/b'))
-    expect(await failure(run('https://allrecipes.com/a', fetchImpl, { resolve }))).toBe(
+    const fetchImpl = vi.fn<typeof fetch>(async () => redirect('https://www.foodnetwork.com/b'))
+    expect(await failure(run('https://foodnetwork.com/a', fetchImpl, { resolve }))).toBe(
       'SOURCE_NOT_ALLOWED',
     )
     expect(fetchImpl).toHaveBeenCalledTimes(1)
@@ -104,20 +104,20 @@ describe('fetchRecipePage', () => {
     const f = vi.fn<typeof fetch>()
     expect(
       await failure(
-        run('https://allrecipes.com/a', f, {
+        run('https://foodnetwork.com/a', f, {
           resolve: async () => {
             throw new Error('x')
           },
         }),
       ),
     ).toBe('FETCH_FAILED')
-    expect(await failure(run('https://allrecipes.com/a', f, { resolve: async () => [] }))).toBe(
+    expect(await failure(run('https://foodnetwork.com/a', f, { resolve: async () => [] }))).toBe(
       'FETCH_FAILED',
     )
     const boom = vi.fn<typeof fetch>(async () => {
       throw new TypeError('net down 10.0.0.1')
     })
-    expect(await failure(run('https://allrecipes.com/a', boom))).toBe('FETCH_FAILED')
+    expect(await failure(run('https://foodnetwork.com/a', boom))).toBe('FETCH_FAILED')
   })
 
   it.each([
@@ -132,7 +132,7 @@ describe('fetchRecipePage', () => {
       async () => new Response('SECRET upstream body', { status }),
     )
     try {
-      await run('https://allrecipes.com/a', fetchImpl)
+      await run('https://foodnetwork.com/a', fetchImpl)
       expect.unreachable()
     } catch (e) {
       expect((e as ImportError).code).toBe(expected)
@@ -147,7 +147,7 @@ describe('fetchRecipePage', () => {
   ])('tells the user what to do after an upstream %i', async (status, wording) => {
     const fetchImpl = vi.fn<typeof fetch>(async () => new Response('', { status }))
     try {
-      await run('https://allrecipes.com/a', fetchImpl)
+      await run('https://foodnetwork.com/a', fetchImpl)
       expect.unreachable()
     } catch (e) {
       expect((e as ImportError).message).toContain(wording)
@@ -158,7 +158,7 @@ describe('fetchRecipePage', () => {
     const fetchImpl = vi.fn<typeof fetch>(
       async () => new Response('', { status: 503, headers: { 'cf-mitigated': 'challenge' } }),
     )
-    expect(await failure(run('https://allrecipes.com/a', fetchImpl))).toBe('SOURCE_BLOCKED')
+    expect(await failure(run('https://foodnetwork.com/a', fetchImpl))).toBe('SOURCE_BLOCKED')
   })
 
   it('treats a rate-limit response that is really a Cloudflare challenge as a refusal', async () => {
@@ -166,7 +166,7 @@ describe('fetchRecipePage', () => {
       async () => new Response('', { status: 429, headers: { 'cf-mitigated': 'challenge' } }),
     )
     try {
-      await run('https://allrecipes.com/a', fetchImpl)
+      await run('https://foodnetwork.com/a', fetchImpl)
       expect.unreachable()
     } catch (e) {
       expect((e as ImportError).code).toBe('SOURCE_BLOCKED')
@@ -178,7 +178,7 @@ describe('fetchRecipePage', () => {
     const fetchImpl = vi.fn<typeof fetch>(
       async () => new Response('{}', { headers: { 'content-type': 'application/json' } }),
     )
-    expect(await failure(run('https://allrecipes.com/a', fetchImpl))).toBe(
+    expect(await failure(run('https://foodnetwork.com/a', fetchImpl))).toBe(
       'UNSUPPORTED_CONTENT_TYPE',
     )
   })
@@ -188,7 +188,7 @@ describe('fetchRecipePage', () => {
     const lying = vi.fn<typeof fetch>(async () =>
       html(big, { headers: { 'content-type': 'text/html', 'content-length': '10' } }),
     )
-    expect(await failure(run('https://allrecipes.com/a', lying, { maxBytes: 1000 }))).toBe(
+    expect(await failure(run('https://foodnetwork.com/a', lying, { maxBytes: 1000 }))).toBe(
       'RESPONSE_TOO_LARGE',
     )
 
@@ -204,7 +204,7 @@ describe('fetchRecipePage', () => {
     const endless = vi.fn<typeof fetch>(
       async () => new Response(stream, { headers: { 'content-type': 'text/html' } }),
     )
-    expect(await failure(run('https://allrecipes.com/a', endless, { maxBytes: 1000 }))).toBe(
+    expect(await failure(run('https://foodnetwork.com/a', endless, { maxBytes: 1000 }))).toBe(
       'RESPONSE_TOO_LARGE',
     )
     expect(cancelled).toBe(true)
@@ -219,7 +219,7 @@ describe('fetchRecipePage', () => {
           )
         }),
     )
-    expect(await failure(run('https://allrecipes.com/a', fetchImpl, { timeoutMs: 20 }))).toBe(
+    expect(await failure(run('https://foodnetwork.com/a', fetchImpl, { timeoutMs: 20 }))).toBe(
       'FETCH_TIMEOUT',
     )
   })
@@ -236,7 +236,7 @@ describe('fetchRecipePage', () => {
       })
       return new Response(stream, { headers: { 'content-type': 'text/html' } })
     })
-    expect(await failure(run('https://allrecipes.com/a', fetchImpl, { timeoutMs: 20 }))).toBe(
+    expect(await failure(run('https://foodnetwork.com/a', fetchImpl, { timeoutMs: 20 }))).toBe(
       'FETCH_TIMEOUT',
     )
   })
@@ -245,10 +245,10 @@ describe('fetchRecipePage', () => {
     const fetchImpl = vi.fn<typeof fetch>()
     const resolve = vi.fn<Resolver>()
     for (const u of [
-      'http://allrecipes.com/',
+      'http://foodnetwork.com/',
       'https://127.0.0.1/',
       'https://evil.com/',
-      'https://u:p@allrecipes.com/',
+      'https://u:p@foodnetwork.com/',
     ]) {
       await failure(run(u, fetchImpl, { resolve }))
     }
@@ -278,7 +278,7 @@ describe('createDohResolver', () => {
       })
     })
     const addresses = await createDohResolver(fetchImpl)(
-      'allrecipes.com',
+      'foodnetwork.com',
       new AbortController().signal,
     )
     expect(peak).toBe(2)
@@ -292,7 +292,7 @@ describe('createDohResolver', () => {
         : new Response('', { status: 500 }),
     )
     await expect(
-      createDohResolver(fetchImpl)('allrecipes.com', new AbortController().signal),
+      createDohResolver(fetchImpl)('foodnetwork.com', new AbortController().signal),
     ).rejects.toThrow()
   })
 })

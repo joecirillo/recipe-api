@@ -5,9 +5,17 @@ import { ImportError } from './import-error'
 // rebinding-proof. We narrow to named publishers instead; see README "Recipe import".
 export const DEFAULT_ALLOWED_HOSTS = [
   'foodnetwork.com',
-  'seriouseats.com',
   'simplehomeedit.com',
-  'allrecipes.com',
+  'bbcgoodfood.com',
+  'budgetbytes.com',
+  'recipetineats.com',
+  'pinchofyum.com',
+  'sallysbakingaddiction.com',
+  'loveandlemons.com',
+  'tasteofhome.com',
+  'kingarthurbaking.com',
+  'bonappetit.com',
+  'cooking.nytimes.com',
 ]
 
 // Unset means "use the defaults". A set-but-empty value means "allow nothing", so an

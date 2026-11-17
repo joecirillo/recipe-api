@@ -15,7 +15,7 @@
     "R2_BUCKET_NAME": "recipe-images",
     // Comma-separated publisher domains (subdomains included) allowed for recipe import.
     // Omit to use the built-in default list.
-    "IMPORT_ALLOWED_HOSTS": "foodnetwork.com,seriouseats.com,simplehomeedit.com,allrecipes.com"
+    "IMPORT_ALLOWED_HOSTS": "foodnetwork.com,simplehomeedit.com,bbcgoodfood.com,budgetbytes.com,recipetineats.com,pinchofyum.com,sallysbakingaddiction.com,loveandlemons.com,tasteofhome.com,kingarthurbaking.com,bonappetit.com,cooking.nytimes.com"
   },
   // "kv_namespaces": [
   //   {

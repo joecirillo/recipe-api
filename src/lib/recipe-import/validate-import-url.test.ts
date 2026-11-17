@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { ImportError } from './import-error'
 import {
@@ -20,24 +21,52 @@ const check = (u: string) => code(() => validateImportUrl(u, DEFAULT_ALLOWED_HOS
 
 describe('validateImportUrl', () => {
   it('accepts allowlisted https URLs, with subdomains and explicit 443', () => {
-    expect(check('https://www.allrecipes.com/recipe/1/x/')).toBeNull()
-    expect(check('https://seriouseats.com:443/x')).toBeNull()
+    expect(check('https://www.foodnetwork.com/recipe/1/x/')).toBeNull()
+    expect(check('https://simplehomeedit.com:443/x')).toBeNull()
   })
 
-  it.each(['not a url', '/relative', 'http://allrecipes.com/x', 'ftp://allrecipes.com/x'])(
+  it.each([
+    'https://www.bbcgoodfood.com/recipes/easy-pancakes',
+    'https://www.budgetbytes.com/one-pot-creamy-cajun-chicken-pasta/',
+    'https://www.recipetineats.com/chicken-chasseur/',
+    'https://pinchofyum.com/the-best-soft-chocolate-chip-cookies',
+    'https://sallysbakingaddiction.com/chewy-chocolate-chip-cookies/',
+    'https://www.loveandlemons.com/guacamole-recipe/',
+    'https://www.tasteofhome.com/recipes/favorite-chicken-potpie/',
+    'https://www.kingarthurbaking.com/recipes/chocolate-chip-cookies-recipe',
+    'https://www.bonappetit.com/recipe/bas-best-chocolate-chip-cookies',
+    'https://cooking.nytimes.com/recipes/1015819-chocolate-chip-cookies',
+  ])('allows a tested recipe site by default: %s', (u) => expect(check(u)).toBeNull())
+
+  it('keeps the wrangler.jsonc allowlist in sync with the code default', () => {
+    const wrangler = readFileSync(new URL('../../../wrangler.jsonc', import.meta.url), 'utf8')
+    const configured = /"IMPORT_ALLOWED_HOSTS":\s*"([^"]*)"/.exec(wrangler)?.[1]
+    expect(parseAllowedHosts(configured)).toEqual(DEFAULT_ALLOWED_HOSTS)
+  })
+
+  it('allows only the NYT Cooking subdomain, not all of nytimes.com', () => {
+    expect(check('https://www.nytimes.com/2026/11/17/dining/x.html')).toBe('SOURCE_NOT_ALLOWED')
+  })
+
+  it.each(['https://www.allrecipes.com/recipe/1/x/', 'https://www.seriouseats.com/x'])(
+    'no longer allows publishers that block automated imports by default: %s',
+    (u) => expect(check(u)).toBe('SOURCE_NOT_ALLOWED'),
+  )
+
+  it.each(['not a url', '/relative', 'http://foodnetwork.com/x', 'ftp://foodnetwork.com/x'])(
     'rejects malformed or non-https: %s',
     (u) => expect(check(u)).toBe('INVALID_URL'),
   )
 
   it('rejects embedded credentials', () => {
-    expect(check('https://user:pw@allrecipes.com/x')).toBe('INVALID_URL')
+    expect(check('https://user:pw@foodnetwork.com/x')).toBe('INVALID_URL')
   })
 
   it.each([
-    'https://allrecipes.com:8443/x',
+    'https://foodnetwork.com:8443/x',
     'https://evil.com/x',
-    'https://allrecipes.com.evil.com/x',
-    'https://notallrecipes.com/x',
+    'https://foodnetwork.com.evil.com/x',
+    'https://notfoodnetwork.com/x',
     'https://localhost/x',
     'https://intranet/x',
     'https://127.0.0.1/x',
@@ -96,7 +125,7 @@ describe('parseAllowedHosts', () => {
   it('allows nothing when explicitly set to empty', () => {
     const hosts = parseAllowedHosts('')
     expect(hosts).toEqual([])
-    expect(code(() => validateImportUrl('https://allrecipes.com/x', hosts))).toBe(
+    expect(code(() => validateImportUrl('https://foodnetwork.com/x', hosts))).toBe(
       'SOURCE_NOT_ALLOWED',
     )
   })
