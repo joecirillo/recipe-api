@@ -160,13 +160,13 @@ describe('GET /recipes', () => {
     )
   })
 
-  it.each(['abc', '0', '-1', '1.5', ''])('returns 400 for cursor=%s', async (cursor) => {
+  it.each(['abc', '0', '-1', '1.5', '', '1e30'])('returns 400 for cursor=%s', async (cursor) => {
     const res = await request(`/recipes?cursor=${cursor}`)
     expect(res.status).toBe(400)
     expect(vi.mocked(recipeService.listRecipes)).not.toHaveBeenCalled()
   })
 
-  it.each(['abc', '0', '-1', '1.5'])('returns 400 for limit=%s', async (limit) => {
+  it.each(['abc', '0', '-1', '1.5', '1e30'])('returns 400 for limit=%s', async (limit) => {
     const res = await request(`/recipes?limit=${limit}`)
     expect(res.status).toBe(400)
     expect(vi.mocked(recipeService.listRecipes)).not.toHaveBeenCalled()

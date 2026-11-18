@@ -10,6 +10,20 @@ Requests are rate limited to **60 per minute per API key**. Exceeding the limit 
 
 > **Note:** The current implementation uses an in-memory fixed window counter. This does not work correctly on Cloudflare Workers — each isolate maintains its own memory with no shared state, so the effective limit per key will be higher than 60 when requests are spread across instances. To enforce the limit globally, replace the in-memory store with a [Cloudflare Rate Limiting binding](https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/) or a Durable Object.
 
+## Listing recipes
+
+`GET /recipes` lists recipes newest first using keyset (cursor) pagination:
+
+- `limit` — page size, default `12`, silently capped at `100`.
+- `cursor` — the `nextCursor` from the previous page; returns recipes with `id < cursor`.
+- `data` is `{ recipes: [{ id, name, imageUrl }], nextCursor }`. `nextCursor` is `null` on the
+  last page.
+- A `cursor` or `limit` that isn't a positive safe integer returns `400`.
+
+With any filter (`name`, `tag`, `cuisine`, `ingredient`, `tagId`, `cuisineId`, `ingredientId`), the
+route searches instead: `data` is a bare array of every match, unpaginated, and `cursor`/`limit`
+are ignored. Paginating search is not implemented yet.
+
 ## Recipe import preview
 
 `POST /recipes/import-preview` with `{ "url": "https://…" }` fetches a recipe page, extracts schema.org

@@ -123,7 +123,7 @@ const RecipeUpdateSchema = z.object({
   steps: z.array(StepInputSchema).min(1).optional(),
 })
 
-const isPositiveInteger = (value: number) => Number.isInteger(value) && value > 0
+const isPositiveInteger = (value: number) => Number.isSafeInteger(value) && value > 0
 
 recipeRouter.get('/', async (c) => {
   const db = createDb(c.env.HYPERDRIVE.connectionString)
