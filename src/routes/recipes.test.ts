@@ -104,45 +104,70 @@ function request(
 
 describe('GET /recipes', () => {
   beforeEach(() => {
-    vi.mocked(recipeService.listRecipes).mockResolvedValue(SAMPLE_LIST_ITEMS)
+    vi.mocked(recipeService.listRecipes).mockResolvedValue({
+      recipes: SAMPLE_LIST_ITEMS,
+      nextCursor: 1,
+    })
     vi.mocked(recipeService.searchRecipes).mockResolvedValue(SAMPLE_LIST_ITEMS)
   })
 
   afterEach(() => vi.clearAllMocks())
 
-  it('returns 200 with paginated slim list', async () => {
+  it('returns 200 with the first page and next cursor', async () => {
     const res = await request('/recipes')
     expect(res.status).toBe(200)
     const body = (await res.json()) as Record<string, any>
     expect(body.status).toBe(200)
     expect(body.message).toBe('Recipes retrieved')
-    expect(body.data).toEqual(SAMPLE_LIST_ITEMS)
-    expect(vi.mocked(recipeService.listRecipes)).toHaveBeenCalledWith(expect.anything(), 0, 12)
+    expect(body.data).toEqual({ recipes: SAMPLE_LIST_ITEMS, nextCursor: 1 })
+    expect(vi.mocked(recipeService.listRecipes)).toHaveBeenCalledWith(
+      expect.anything(),
+      undefined,
+      12,
+    )
+  })
+
+  it('returns a null cursor on the last page', async () => {
+    vi.mocked(recipeService.listRecipes).mockResolvedValue({ recipes: [], nextCursor: null })
+    const res = await request('/recipes')
+    const body = (await res.json()) as Record<string, any>
+    expect(body.data.nextCursor).toBeNull()
   })
 
   it('resolves a bare stored key to a full public URL', async () => {
-    vi.mocked(recipeService.listRecipes).mockResolvedValue([
-      { id: 3, name: 'Tacos', imageUrl: 'recipes/xyz-789.jpg' },
-    ])
+    vi.mocked(recipeService.listRecipes).mockResolvedValue({
+      recipes: [{ id: 3, name: 'Tacos', imageUrl: 'recipes/xyz-789.jpg' }],
+      nextCursor: null,
+    })
     const res = await request('/recipes')
     const body = (await res.json()) as Record<string, any>
-    expect(body.data[0].imageUrl).toBe(`${TEST_ENV.R2_PUBLIC_URL}/recipes/xyz-789.jpg`)
+    expect(body.data.recipes[0].imageUrl).toBe(`${TEST_ENV.R2_PUBLIC_URL}/recipes/xyz-789.jpg`)
   })
 
-  it('passes custom page and limit params', async () => {
-    const res = await request('/recipes?page=2&limit=5')
+  it('passes custom cursor and limit params', async () => {
+    const res = await request('/recipes?cursor=20&limit=5')
     expect(res.status).toBe(200)
-    expect(vi.mocked(recipeService.listRecipes)).toHaveBeenCalledWith(expect.anything(), 2, 5)
+    expect(vi.mocked(recipeService.listRecipes)).toHaveBeenCalledWith(expect.anything(), 20, 5)
   })
 
   it('passes limit to service uncapped', async () => {
     const res = await request('/recipes?limit=999')
     expect(res.status).toBe(200)
-    expect(vi.mocked(recipeService.listRecipes)).toHaveBeenCalledWith(expect.anything(), 0, 999)
+    expect(vi.mocked(recipeService.listRecipes)).toHaveBeenCalledWith(
+      expect.anything(),
+      undefined,
+      999,
+    )
   })
 
-  it('returns 400 for non-numeric page or limit', async () => {
-    const res = await request('/recipes?page=abc')
+  it.each(['abc', '0', '-1', '1.5', ''])('returns 400 for cursor=%s', async (cursor) => {
+    const res = await request(`/recipes?cursor=${cursor}`)
+    expect(res.status).toBe(400)
+    expect(vi.mocked(recipeService.listRecipes)).not.toHaveBeenCalled()
+  })
+
+  it.each(['abc', '0', '-1', '1.5'])('returns 400 for limit=%s', async (limit) => {
+    const res = await request(`/recipes?limit=${limit}`)
     expect(res.status).toBe(400)
     expect(vi.mocked(recipeService.listRecipes)).not.toHaveBeenCalled()
   })

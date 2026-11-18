@@ -123,6 +123,8 @@ const RecipeUpdateSchema = z.object({
   steps: z.array(StepInputSchema).min(1).optional(),
 })
 
+const isPositiveInteger = (value: number) => Number.isInteger(value) && value > 0
+
 recipeRouter.get('/', async (c) => {
   const db = createDb(c.env.HYPERDRIVE.connectionString)
 
@@ -179,18 +181,21 @@ recipeRouter.get('/', async (c) => {
     )
   }
 
-  const page = Number(c.req.query('page') ?? 0)
+  const cursorRaw = c.req.query('cursor')
+  const cursor = cursorRaw === undefined ? undefined : Number(cursorRaw)
   const limit = Number(c.req.query('limit') ?? 12)
-  if (isNaN(page) || isNaN(limit)) {
-    throw new BadRequestError('Invalid page or limit')
+  if (cursor !== undefined && !isPositiveInteger(cursor)) {
+    throw new BadRequestError('Invalid cursor')
   }
-  const data = await listRecipes(db, page, limit)
+  if (!isPositiveInteger(limit)) {
+    throw new BadRequestError('Invalid limit')
+  }
+  const data = await listRecipes(db, cursor, limit)
   return c.json(
-    buildSuccess(
-      200,
-      'Recipes retrieved',
-      data.map((r) => withPublicImageUrl(r, c.env.R2_PUBLIC_URL)),
-    ),
+    buildSuccess(200, 'Recipes retrieved', {
+      recipes: data.recipes.map((r) => withPublicImageUrl(r, c.env.R2_PUBLIC_URL)),
+      nextCursor: data.nextCursor,
+    }),
     200,
   )
 })

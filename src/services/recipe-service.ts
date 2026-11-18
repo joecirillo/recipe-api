@@ -1,4 +1,4 @@
-import { and, asc, eq, ilike, inArray, type SQL } from 'drizzle-orm'
+import { and, desc, eq, ilike, inArray, lt, type SQL } from 'drizzle-orm'
 import { createDb } from '../db/client'
 import {
   cuisines,
@@ -76,6 +76,7 @@ export type RecipeSearchParams = {
 }
 
 export type RecipeListItem = { id: number; name: string; imageUrl: string | null }
+export type RecipeListPage = { recipes: RecipeListItem[]; nextCursor: number | null }
 
 export type RecipeIngredientResponse = {
   id: number
@@ -193,15 +194,27 @@ async function fetchFullRecipe(db: Db, id: number): Promise<RecipeResponse> {
   }
 }
 
-export async function listRecipes(db: Db, page: number, limit: number): Promise<RecipeListItem[]> {
+// Keyset pagination: fetching one row past the limit tells us whether another page
+// exists without a separate COUNT query, and `id < cursor` stays stable when new
+// recipes are added between page loads (OFFSET would shift and repeat rows).
+export async function listRecipes(
+  db: Db,
+  cursor: number | undefined,
+  limit: number,
+): Promise<RecipeListPage> {
   const safeLimit = Math.min(limit, 100)
   const rows = await db
     .select({ id: recipes.id, name: recipes.name, imageUrl: recipes.imageUrl })
     .from(recipes)
-    .orderBy(asc(recipes.id))
-    .limit(safeLimit)
-    .offset(page * safeLimit)
-  return rows.map((r) => ({ id: r.id, name: r.name, imageUrl: r.imageUrl ?? null }))
+    .where(cursor === undefined ? undefined : lt(recipes.id, cursor))
+    .orderBy(desc(recipes.id))
+    .limit(safeLimit + 1)
+  const pageRows = rows.slice(0, safeLimit)
+  const hasMore = rows.length > safeLimit
+  return {
+    recipes: pageRows.map((r) => ({ id: r.id, name: r.name, imageUrl: r.imageUrl ?? null })),
+    nextCursor: hasMore ? pageRows[pageRows.length - 1].id : null,
+  }
 }
 
 export async function searchRecipes(db: Db, params: RecipeSearchParams): Promise<RecipeListItem[]> {
