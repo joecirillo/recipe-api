@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { authMiddleware } from '../middleware/auth'
 import { errorHandler } from '../middleware/error-handler'
+import { encodeIdCursor } from '../lib/id-cursor'
 import { NotFoundError } from '../errors'
 import * as recipeService from '../services/recipe-service'
 import { recipeRouter } from './recipes'
@@ -106,20 +107,22 @@ describe('GET /recipes', () => {
   beforeEach(() => {
     vi.mocked(recipeService.listRecipes).mockResolvedValue({
       recipes: SAMPLE_LIST_ITEMS,
-      nextCursor: 1,
+      nextId: 1,
+      limit: 12,
     })
     vi.mocked(recipeService.searchRecipes).mockResolvedValue(SAMPLE_LIST_ITEMS)
   })
 
   afterEach(() => vi.clearAllMocks())
 
-  it('returns 200 with the first page and next cursor', async () => {
+  it('returns the page as a plain array with pagination in meta', async () => {
     const res = await request('/recipes')
     expect(res.status).toBe(200)
     const body = (await res.json()) as Record<string, any>
     expect(body.status).toBe(200)
     expect(body.message).toBe('Recipes retrieved')
-    expect(body.data).toEqual({ recipes: SAMPLE_LIST_ITEMS, nextCursor: 1 })
+    expect(body.data).toEqual(SAMPLE_LIST_ITEMS)
+    expect(body.meta).toEqual({ pagination: { nextCursor: encodeIdCursor(1), limit: 12 } })
     expect(vi.mocked(recipeService.listRecipes)).toHaveBeenCalledWith(
       expect.anything(),
       undefined,
@@ -128,24 +131,47 @@ describe('GET /recipes', () => {
   })
 
   it('returns a null cursor on the last page', async () => {
-    vi.mocked(recipeService.listRecipes).mockResolvedValue({ recipes: [], nextCursor: null })
+    vi.mocked(recipeService.listRecipes).mockResolvedValue({
+      recipes: [],
+      nextId: null,
+      limit: 12,
+    })
     const res = await request('/recipes')
     const body = (await res.json()) as Record<string, any>
-    expect(body.data.nextCursor).toBeNull()
+    expect(body.meta.pagination.nextCursor).toBeNull()
+  })
+
+  it('reports the limit the service applied', async () => {
+    vi.mocked(recipeService.listRecipes).mockResolvedValue({
+      recipes: [],
+      nextId: null,
+      limit: 100,
+    })
+    const res = await request('/recipes?limit=999')
+    const body = (await res.json()) as Record<string, any>
+    expect(body.meta.pagination.limit).toBe(100)
+  })
+
+  it('leaves meta off filtered results', async () => {
+    const res = await request('/recipes?cuisineId=3')
+    const body = (await res.json()) as Record<string, any>
+    expect(body.data).toEqual(SAMPLE_LIST_ITEMS)
+    expect(body).not.toHaveProperty('meta')
   })
 
   it('resolves a bare stored key to a full public URL', async () => {
     vi.mocked(recipeService.listRecipes).mockResolvedValue({
       recipes: [{ id: 3, name: 'Tacos', imageUrl: 'recipes/xyz-789.jpg' }],
-      nextCursor: null,
+      nextId: null,
+      limit: 12,
     })
     const res = await request('/recipes')
     const body = (await res.json()) as Record<string, any>
-    expect(body.data.recipes[0].imageUrl).toBe(`${TEST_ENV.R2_PUBLIC_URL}/recipes/xyz-789.jpg`)
+    expect(body.data[0].imageUrl).toBe(`${TEST_ENV.R2_PUBLIC_URL}/recipes/xyz-789.jpg`)
   })
 
-  it('passes custom cursor and limit params', async () => {
-    const res = await request('/recipes?cursor=20&limit=5')
+  it('decodes the cursor and passes the limit', async () => {
+    const res = await request(`/recipes?cursor=${encodeIdCursor(20)}&limit=5`)
     expect(res.status).toBe(200)
     expect(vi.mocked(recipeService.listRecipes)).toHaveBeenCalledWith(expect.anything(), 20, 5)
   })
@@ -160,8 +186,17 @@ describe('GET /recipes', () => {
     )
   })
 
-  it.each(['abc', '0', '-1', '1.5', '', '1e30'])('returns 400 for cursor=%s', async (cursor) => {
-    const res = await request(`/recipes?cursor=${cursor}`)
+  it.each(['abc', '20', '', encodeIdCursor(20).slice(1)])(
+    'returns 400 for cursor=%s',
+    async (cursor) => {
+      const res = await request(`/recipes?cursor=${encodeURIComponent(cursor)}`)
+      expect(res.status).toBe(400)
+      expect(vi.mocked(recipeService.listRecipes)).not.toHaveBeenCalled()
+    },
+  )
+
+  it('rejects a cursor that decodes to an unusable id', async () => {
+    const res = await request(`/recipes?cursor=${btoa('{"id":0}')}`)
     expect(res.status).toBe(400)
     expect(vi.mocked(recipeService.listRecipes)).not.toHaveBeenCalled()
   })

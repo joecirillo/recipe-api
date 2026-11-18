@@ -186,10 +186,11 @@ describe('listRecipes', () => {
     expect(chain.limit).toHaveBeenCalledWith(13)
   })
 
-  it('caps limit at 100', async () => {
+  it('caps limit at 100 and reports the applied limit', async () => {
     const { db, chain } = makeDb([])
-    await listRecipes(db, undefined, 999)
+    const page = await listRecipes(db, undefined, 999)
     expect(chain.limit).toHaveBeenCalledWith(101)
+    expect(page.limit).toBe(100)
   })
 
   it('orders newest first', async () => {
@@ -210,18 +211,18 @@ describe('listRecipes', () => {
     expect(chain.where).toHaveBeenCalledWith(lt(recipes.id, 20))
   })
 
-  it('returns the last id as the next cursor when more rows exist', async () => {
+  it('returns the last id as the next id when more rows exist', async () => {
     const { db } = makeDb(listRows(9, 8, 7))
     const page = await listRecipes(db, undefined, 2)
     expect(page.recipes.map((r) => r.id)).toEqual([9, 8])
-    expect(page.nextCursor).toBe(8)
+    expect(page.nextId).toBe(8)
   })
 
-  it('returns a null cursor on the last page', async () => {
+  it('returns a null next id on the last page', async () => {
     const { db } = makeDb(listRows(9, 8))
     const page = await listRecipes(db, undefined, 2)
     expect(page.recipes.map((r) => r.id)).toEqual([9, 8])
-    expect(page.nextCursor).toBeNull()
+    expect(page.nextId).toBeNull()
   })
 })
 

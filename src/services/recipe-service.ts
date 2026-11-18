@@ -76,7 +76,7 @@ export type RecipeSearchParams = {
 }
 
 export type RecipeListItem = { id: number; name: string; imageUrl: string | null }
-export type RecipeListPage = { recipes: RecipeListItem[]; nextCursor: number | null }
+export type RecipeListPage = { recipes: RecipeListItem[]; nextId: number | null; limit: number }
 
 export type RecipeIngredientResponse = {
   id: number
@@ -194,26 +194,29 @@ async function fetchFullRecipe(db: Db, id: number): Promise<RecipeResponse> {
   }
 }
 
+const MAX_LIST_LIMIT = 100
+
 // Keyset pagination: fetching one row past the limit tells us whether another page
-// exists without a separate COUNT query, and `id < cursor` stays stable when new
+// exists without a separate COUNT query, and `id < beforeId` stays stable when new
 // recipes are added between page loads (OFFSET would shift and repeat rows).
 export async function listRecipes(
   db: Db,
-  cursor: number | undefined,
+  beforeId: number | undefined,
   limit: number,
 ): Promise<RecipeListPage> {
-  const safeLimit = Math.min(limit, 100)
+  const safeLimit = Math.min(limit, MAX_LIST_LIMIT)
   const rows = await db
     .select({ id: recipes.id, name: recipes.name, imageUrl: recipes.imageUrl })
     .from(recipes)
-    .where(cursor === undefined ? undefined : lt(recipes.id, cursor))
+    .where(beforeId === undefined ? undefined : lt(recipes.id, beforeId))
     .orderBy(desc(recipes.id))
     .limit(safeLimit + 1)
   const pageRows = rows.slice(0, safeLimit)
   const hasMore = rows.length > safeLimit
   return {
     recipes: pageRows.map((r) => ({ id: r.id, name: r.name, imageUrl: r.imageUrl ?? null })),
-    nextCursor: hasMore ? pageRows[pageRows.length - 1].id : null,
+    nextId: hasMore ? pageRows[pageRows.length - 1].id : null,
+    limit: safeLimit,
   }
 }
 

@@ -14,15 +14,27 @@ Requests are rate limited to **60 per minute per API key**. Exceeding the limit 
 
 `GET /recipes` lists recipes newest first using keyset (cursor) pagination:
 
-- `limit` — page size, default `12`, silently capped at `100`.
-- `cursor` — the `nextCursor` from the previous page; returns recipes with `id < cursor`.
-- `data` is `{ recipes: [{ id, name, imageUrl }], nextCursor }`. `nextCursor` is `null` on the
-  last page.
-- A `cursor` or `limit` that isn't a positive safe integer returns `400`.
+- `limit` — page size, default `12`, capped at `100`.
+- `cursor` — the `nextCursor` from the previous page, passed back unchanged. It is an opaque
+  string; clients must not build or parse it.
+- `data` is an array of `{ id, name, imageUrl }`.
+- `meta.pagination` is `{ nextCursor, limit }`. `nextCursor` is `null` on the last page, and
+  `limit` is the page size actually applied after the cap.
+- A malformed `cursor`, or a `limit` that isn't a positive safe integer, returns `400`.
+
+```json
+{
+  "timestamp": "2026-11-18T02:03:11.521Z",
+  "status": 200,
+  "message": "Recipes retrieved",
+  "data": [{ "id": 12, "name": "Tacos", "imageUrl": "https://cdn.foodiesfinds.com/recipes/a.jpg" }],
+  "meta": { "pagination": { "nextCursor": "eyJpZCI6MTJ9", "limit": 12 } }
+}
+```
 
 With any filter (`name`, `tag`, `cuisine`, `ingredient`, `tagId`, `cuisineId`, `ingredientId`), the
-route searches instead: `data` is a bare array of every match, unpaginated, and `cursor`/`limit`
-are ignored. Paginating search is not implemented yet.
+route searches instead: `data` has the same item shape but holds every match, there is no `meta`,
+and `cursor`/`limit` are ignored. Paginating search is not implemented yet.
 
 ## Recipe import preview
 
