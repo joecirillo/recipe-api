@@ -171,5 +171,6 @@ A successful response contains `"passed":true`; assertion failures return an
 error. Stop the server after checking. The harness covers malformed-script
 recovery, graph selection/counting, Cheerio text decoding, nested instructions,
 nullable ingredients, array yields, durations, image filtering/resolution,
-absent recipes, and save-limit warnings. It passed locally with Wrangler 4.115.0;
+absent recipes, save-limit warnings, and graph `@id` author references with
+zero-padded and plain-English durations and attached `HowToTip` text. It passed locally with Wrangler 4.115.0;
 this verifies local Workers execution, not deployment to Cloudflare.
