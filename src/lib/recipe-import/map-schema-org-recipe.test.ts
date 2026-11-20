@@ -242,6 +242,17 @@ describe('mapSchemaOrgRecipe', () => {
     expect(result.warnings[0]).toMatchObject({ code: 'INVALID_FIELD', field: 'author.name' })
   })
 
+  it('maps Food Network zero-padded ISO durations', () => {
+    const result = preview({
+      '@type': 'Recipe',
+      prepTime: 'P0Y0M0DT0H15M0.000S',
+      cookTime: 'P0Y0M0DT0H25M0.000S',
+      totalTime: 'P0Y0M0DT1H0M0.000S',
+    })
+    expect(result.recipe).toMatchObject({ preparationTime: 15, cookingTime: 25 })
+    expect(result.warnings).toEqual([])
+  })
+
   it('maps Bon Appétit plain-English durations', () => {
     const result = preview({
       '@type': 'Recipe',
