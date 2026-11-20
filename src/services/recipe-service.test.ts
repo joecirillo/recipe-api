@@ -1,3 +1,4 @@
+import { desc, lt } from 'drizzle-orm'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   createRecipe,
@@ -31,9 +32,9 @@ vi.mock('./image-service', () => ({
 function makeDb(rows: { id: number; name: string; imageUrl: string | null }[]) {
   const chain = {
     from: vi.fn().mockReturnThis(),
+    where: vi.fn().mockReturnThis(),
     orderBy: vi.fn().mockReturnThis(),
-    limit: vi.fn().mockReturnThis(),
-    offset: vi.fn().mockResolvedValue(rows),
+    limit: vi.fn().mockResolvedValue(rows),
   }
   return {
     db: { select: vi.fn().mockReturnValue(chain) } as unknown as Parameters<typeof listRecipes>[0],
@@ -176,24 +177,52 @@ describe('searchRecipes', () => {
 })
 
 describe('listRecipes', () => {
-  it('caps limit at 100', async () => {
+  const listRows = (...ids: number[]) =>
+    ids.map((id) => ({ id, name: `Recipe ${id}`, imageUrl: null }))
+
+  it('fetches one row past the limit to detect another page', async () => {
     const { db, chain } = makeDb([])
-    await listRecipes(db, 0, 999)
-    expect(chain.limit).toHaveBeenCalledWith(100)
-    expect(chain.offset).toHaveBeenCalledWith(0)
+    await listRecipes(db, undefined, 12)
+    expect(chain.limit).toHaveBeenCalledWith(13)
   })
 
-  it('passes limit through when under 100', async () => {
+  it('caps limit at 100 and reports the applied limit', async () => {
     const { db, chain } = makeDb([])
-    await listRecipes(db, 0, 12)
-    expect(chain.limit).toHaveBeenCalledWith(12)
+    const page = await listRecipes(db, undefined, 999)
+    expect(chain.limit).toHaveBeenCalledWith(101)
+    expect(page.limit).toBe(100)
   })
 
-  it('applies cap to offset calculation', async () => {
+  it('orders newest first', async () => {
     const { db, chain } = makeDb([])
-    await listRecipes(db, 2, 999)
-    expect(chain.limit).toHaveBeenCalledWith(100)
-    expect(chain.offset).toHaveBeenCalledWith(200)
+    await listRecipes(db, undefined, 12)
+    expect(chain.orderBy).toHaveBeenCalledWith(desc(recipes.id))
+  })
+
+  it('starts from the newest recipe when no cursor is given', async () => {
+    const { db, chain } = makeDb([])
+    await listRecipes(db, undefined, 12)
+    expect(chain.where).toHaveBeenCalledWith(undefined)
+  })
+
+  it('only returns recipes older than the cursor', async () => {
+    const { db, chain } = makeDb([])
+    await listRecipes(db, 20, 12)
+    expect(chain.where).toHaveBeenCalledWith(lt(recipes.id, 20))
+  })
+
+  it('returns the last id as the next id when more rows exist', async () => {
+    const { db } = makeDb(listRows(9, 8, 7))
+    const page = await listRecipes(db, undefined, 2)
+    expect(page.recipes.map((r) => r.id)).toEqual([9, 8])
+    expect(page.nextId).toBe(8)
+  })
+
+  it('returns a null next id on the last page', async () => {
+    const { db } = makeDb(listRows(9, 8))
+    const page = await listRecipes(db, undefined, 2)
+    expect(page.recipes.map((r) => r.id)).toEqual([9, 8])
+    expect(page.nextId).toBeNull()
   })
 })
 

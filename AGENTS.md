@@ -24,7 +24,7 @@ routes, services, schemas, and tests when extending them.
 
 - Directory layout: `src/routes/`, `src/db/schema/`, `src/services/`, `src/middleware/`, `src/lib/`
 - One Drizzle schema file per resource in `src/db/schema/`
-- Success envelope: `{ timestamp: string, status: number, message: string, data: unknown }` (`SuccessResponse` in `src/lib/response.ts`)
+- Success envelope: `{ timestamp: string, status: number, message: string, data: unknown, meta?: { pagination?: { nextCursor: string | null, limit: number } } }` (`SuccessResponse` in `src/lib/response.ts`). `data` is the requested resource or list itself; information about the response, such as pagination, goes in `meta`, never inside `data`
 - Error envelope: `{ timestamp: string, status: number, message: string, path: string, code?: string }` (`ErrorResponse` in `src/lib/response.ts`); `code` is an optional stable machine-readable code, currently set only by recipe import errors
 - Use `buildSuccess` / `buildError` from `src/lib/response.ts` in all route handlers — never construct the envelope inline
 - Auth: API-key middleware, equivalent to the Spring Security filter in the old repo
@@ -35,7 +35,8 @@ routes, services, schemas, and tests when extending them.
 
 - `foodies-finds` is the Next.js frontend; `recipe-api` is the Hono backend on Cloudflare Workers. Check the sibling repository when changing a shared contract.
 - The frontend calls the backend on the server using `API_URL` and `API_KEY`; send the key in `X-Api-Key`. Never expose it through a `NEXT_PUBLIC_` variable. The backend accepts `USER_API_KEY` for ordinary access and requires `ADMIN_API_KEY` for deleting recipes.
-- Success envelope: `{ timestamp: string, status: number, message: string, data: unknown }`. Error envelope: `{ timestamp: string, status: number, message: string, path: string, code?: string }` (`code` is optional and currently only set by recipe import errors; clients that ignore it keep working). Frontend server-side helpers unwrap `data` and propagate useful error messages.
+- Success envelope: `{ timestamp: string, status: number, message: string, data: unknown, meta?: { pagination?: { nextCursor: string | null, limit: number } } }`. Error envelope: `{ timestamp: string, status: number, message: string, path: string, code?: string }` (`code` is optional and currently only set by recipe import errors; clients that ignore it keep working). Frontend server-side helpers unwrap `data` and propagate useful error messages.
+- Cursor-paginated lists (currently unfiltered `GET /recipes`) return `meta.pagination`. `nextCursor` is opaque: pass it back as `?cursor=` unchanged and never construct or parse it. `meta.pagination.nextCursor: null` marks the last page; a response without `meta` is not paginated and holds the complete result.
 - PATCH leaves omitted fields unchanged. Explicit `null` clears nullable fields only; required fields must still satisfy the route's validation schema.
 - Image uploads use `POST /recipes/images/presign`, then a direct PUT to R2. Submit the returned `key` as the recipe's `imageUrl`, not the public URL. Reads resolve stored keys to public URLs; legacy full URLs remain supported.
 

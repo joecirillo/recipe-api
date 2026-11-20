@@ -1,4 +1,4 @@
-import { and, asc, eq, ilike, inArray, type SQL } from 'drizzle-orm'
+import { and, desc, eq, ilike, inArray, lt, type SQL } from 'drizzle-orm'
 import { createDb } from '../db/client'
 import {
   cuisines,
@@ -76,6 +76,7 @@ export type RecipeSearchParams = {
 }
 
 export type RecipeListItem = { id: number; name: string; imageUrl: string | null }
+export type RecipeListPage = { recipes: RecipeListItem[]; nextId: number | null; limit: number }
 
 export type RecipeIngredientResponse = {
   id: number
@@ -193,15 +194,30 @@ async function fetchFullRecipe(db: Db, id: number): Promise<RecipeResponse> {
   }
 }
 
-export async function listRecipes(db: Db, page: number, limit: number): Promise<RecipeListItem[]> {
-  const safeLimit = Math.min(limit, 100)
+const MAX_LIST_LIMIT = 100
+
+// Keyset pagination: fetching one row past the limit tells us whether another page
+// exists without a separate COUNT query, and `id < beforeId` stays stable when new
+// recipes are added between page loads (OFFSET would shift and repeat rows).
+export async function listRecipes(
+  db: Db,
+  beforeId: number | undefined,
+  limit: number,
+): Promise<RecipeListPage> {
+  const safeLimit = Math.min(limit, MAX_LIST_LIMIT)
   const rows = await db
     .select({ id: recipes.id, name: recipes.name, imageUrl: recipes.imageUrl })
     .from(recipes)
-    .orderBy(asc(recipes.id))
-    .limit(safeLimit)
-    .offset(page * safeLimit)
-  return rows.map((r) => ({ id: r.id, name: r.name, imageUrl: r.imageUrl ?? null }))
+    .where(beforeId === undefined ? undefined : lt(recipes.id, beforeId))
+    .orderBy(desc(recipes.id))
+    .limit(safeLimit + 1)
+  const pageRows = rows.slice(0, safeLimit)
+  const hasMore = rows.length > safeLimit
+  return {
+    recipes: pageRows.map((r) => ({ id: r.id, name: r.name, imageUrl: r.imageUrl ?? null })),
+    nextId: hasMore ? pageRows[pageRows.length - 1].id : null,
+    limit: safeLimit,
+  }
 }
 
 export async function searchRecipes(db: Db, params: RecipeSearchParams): Promise<RecipeListItem[]> {
