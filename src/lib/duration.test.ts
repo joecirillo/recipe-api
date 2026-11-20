@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseDurationMinutes } from './duration'
+import { parseDurationMinutes, parsePlainDurationMinutes } from './duration'
 
 describe('parseDurationMinutes', () => {
   it.each([
@@ -50,5 +50,50 @@ describe('parseDurationMinutes', () => {
     'PT9999999999999999999999999H',
   ])('returns null for unsupported or invalid input %j', (input) => {
     expect(parseDurationMinutes(input)).toBeNull()
+  })
+})
+
+describe('parsePlainDurationMinutes', () => {
+  it.each([
+    ['20 minutes', 20],
+    ['40 minutes', 40],
+    ['1 minute', 1],
+    ['5 min', 5],
+    ['15 mins', 15],
+    ['2 hr', 120],
+    ['3 hrs', 180],
+    ['1 hour', 60],
+    ['2 hours', 120],
+    ['1 hour 20 minutes', 80],
+    ['1 hr 5 mins', 65],
+    ['  1 Hour  20 Minutes ', 80],
+    ['0 minutes', 0],
+  ])('parses %j into %s minutes', (input, expected) => {
+    expect(parsePlainDurationMinutes(input)).toBe(expected)
+  })
+
+  it.each([
+    undefined,
+    null,
+    20,
+    '',
+    ' ',
+    'about 20 minutes',
+    '20-25 minutes',
+    '20 to 25 minutes',
+    '1.5 hours',
+    '20minutes',
+    '1 hour20 minutes',
+    '1 hour and 20 minutes',
+    '1 hour, 20 minutes',
+    '20 minutes 1 hour',
+    '1 hour 1 hour',
+    '20 seconds',
+    '1 day',
+    'minutes',
+    'PT20M',
+    '9999999999999999999 hours',
+  ])('returns null for unsupported input %j', (input) => {
+    expect(parsePlainDurationMinutes(input)).toBeNull()
   })
 })

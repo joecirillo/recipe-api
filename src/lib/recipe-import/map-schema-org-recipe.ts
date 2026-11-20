@@ -1,4 +1,4 @@
-import { parseDurationMinutes } from '../duration'
+import { parseDurationMinutes, parsePlainDurationMinutes } from '../duration'
 import type { RecipeImportPreview, RecipeImportWarning } from '../types'
 import type { ExtractedRecipeJsonLd } from './extract-recipe-json-ld'
 import { parseRecipeYield } from './parse-recipe-yield'
@@ -206,7 +206,7 @@ function mapDuration(
   field: string,
   warnings: RecipeImportWarning[],
 ): number | null {
-  const minutes = parseDurationMinutes(value)
+  const minutes = parseDurationMinutes(value) ?? parsePlainDurationMinutes(value)
   if (value != null && minutes === null) {
     warnings.push({
       code: 'INVALID_DURATION',

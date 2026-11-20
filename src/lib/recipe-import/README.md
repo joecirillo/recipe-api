@@ -19,6 +19,22 @@ months, or weeks (e.g. `P1Y`, `P2M`, `P1W`), fractional days/hours/minutes,
 negative durations, empty durations, and results outside JavaScript's safe
 integer range return `null`, as do missing values.
 
+`parsePlainDurationMinutes(value)` in the same module is the mapper's fallback
+when a time is not ISO 8601. It accepts, case-insensitively and with surrounding
+whitespace trimmed, a whole number of hours, a whole number of minutes, or hours
+followed by minutes, each written as a number, whitespace, and a unit:
+
+| Unit     | Accepted spellings                 | Examples                                |
+| -------- | ---------------------------------- | --------------------------------------- |
+| Hours    | `hr`, `hrs`, `hour`, `hours`       | `2 hrs` (120), `1 hour` (60)            |
+| Minutes  | `min`, `mins`, `minute`, `minutes` | `20 minutes` (20), `5 min` (5)          |
+| Combined | hours, whitespace, then minutes    | `1 hour 20 minutes` (80), `1 hr 5 mins` |
+
+Anything else, including approximations (`about 20 minutes`), ranges
+(`20-25 minutes`), fractions (`1.5 hours`), connecting words or punctuation
+(`1 hour and 20 minutes`), and other units, returns `null` and produces an
+`INVALID_DURATION` warning.
+
 ## Preview contract
 
 `RecipeImportPreview` in `../types.ts` is the agreed contract for

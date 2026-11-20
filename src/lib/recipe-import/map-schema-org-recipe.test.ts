@@ -242,6 +242,28 @@ describe('mapSchemaOrgRecipe', () => {
     expect(result.warnings[0]).toMatchObject({ code: 'INVALID_FIELD', field: 'author.name' })
   })
 
+  it('maps Bon Appétit plain-English durations', () => {
+    const result = preview({
+      '@type': 'Recipe',
+      prepTime: '1 hour 20 minutes',
+      cookTime: '20 minutes',
+      totalTime: '40 minutes',
+    })
+    expect(result.recipe).toMatchObject({ preparationTime: 80, cookingTime: 20 })
+    expect(result.warnings).toEqual([])
+  })
+
+  it.each(['about 20 minutes', '20-25 minutes', 'P1Y', 'P2M'])(
+    'leaves unsupported duration %j empty with a warning',
+    (cookTime) => {
+      const result = preview({ cookTime })
+      expect(result.recipe.cookingTime).toBeNull()
+      expect(result.warnings).toEqual([
+        expect.objectContaining({ code: 'INVALID_DURATION', field: 'cookTime' }),
+      ])
+    },
+  )
+
   it.each([
     ['https://images.example.com/a.jpg', 'https://images.example.com/a.jpg'],
     ['http://images.example.com/a.jpg', 'http://images.example.com/a.jpg'],
