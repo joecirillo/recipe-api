@@ -222,6 +222,84 @@ describe('mapSchemaOrgRecipe', () => {
     ])
   })
 
+  it('attaches King Arthur HowToTip entries to the step before them', () => {
+    const result = preview({
+      '@type': 'Recipe',
+      recipeInstructions: [
+        { '@type': 'HowToStep', text: 'Preheat the oven to 350°F.' },
+        { '@type': 'HowToStep', text: '<p>Bake for 25 to 30 minutes.</p>' },
+        {
+          '@type': 'HowToTip',
+          text: 'Want to make this recipe gluten-free? Substitute King Arthur Measure for Measure Flour.',
+        },
+        { '@type': 'HowToTip', text: 'For mocha brownies, add 1 teaspoon espresso powder.' },
+        { '@type': 'HowToTip', text: 'Store brownies, well wrapped, for up to 5 days.' },
+        { '@type': 'HowToTip', text: '<p>Freeze for longer storage.</p>' },
+      ],
+    })
+    expect(result.recipe.steps).toEqual([
+      { stepNumber: 1, description: 'Preheat the oven to 350°F.', tip: null },
+      {
+        stepNumber: 2,
+        description: 'Bake for 25 to 30 minutes.',
+        tip: [
+          'Want to make this recipe gluten-free? Substitute King Arthur Measure for Measure Flour.',
+          'For mocha brownies, add 1 teaspoon espresso powder.',
+          'Store brownies, well wrapped, for up to 5 days.',
+          'Freeze for longer storage.',
+        ].join('\n'),
+      },
+    ])
+    expect(result.warnings).toEqual([])
+  })
+
+  it('attaches a tip to the previous step across sections and accepts full type IRIs', () => {
+    const result = preview({
+      recipeInstructions: [
+        { '@type': 'HowToSection', itemListElement: ['Mix.'] },
+        {
+          '@type': 'HowToSection',
+          itemListElement: [{ '@type': 'https://schema.org/HowToTip', text: 'Do not overmix.' }],
+        },
+        'Bake.',
+      ],
+    })
+    expect(result.recipe.steps).toEqual([
+      { stepNumber: 1, description: 'Mix.', tip: 'Do not overmix.' },
+      { stepNumber: 2, description: 'Bake.', tip: null },
+    ])
+  })
+
+  it('warns about tips without a preceding step or without text', () => {
+    const result = preview({
+      recipeInstructions: [
+        { '@type': 'HowToTip', text: 'Read the recipe first.' },
+        'Mix.',
+        { '@type': 'HowToTip' },
+        { '@type': 'HowToTip', text: 7 },
+        { '@type': 'HowToTip', text: '<p> </p>' },
+      ],
+    })
+    expect(result.recipe.steps).toEqual([{ stepNumber: 1, description: 'Mix.', tip: null }])
+    expect(result.warnings).toEqual(
+      [
+        'recipeInstructions[0]',
+        'recipeInstructions[2].text',
+        'recipeInstructions[3].text',
+        'recipeInstructions[4].text',
+      ].map((field) => expect.objectContaining({ code: 'INVALID_FIELD', field })),
+    )
+  })
+
+  it('keeps a long joined tip without a save-limit warning because tips are unbounded', () => {
+    const tip = 'x'.repeat(5000)
+    const result = preview({
+      recipeInstructions: ['Mix.', { '@type': 'HowToTip', text: tip }],
+    })
+    expect(result.recipe.steps?.[0].tip).toBe(tip)
+    expect(result.warnings).toEqual([])
+  })
+
   it.each([
     ['Jane', 'Jane'],
     [{ '@type': 'Person', name: 'Jane' }, 'Jane'],

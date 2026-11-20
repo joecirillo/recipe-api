@@ -79,9 +79,14 @@ permitted by the preview contract and, since
 [recipe-api#84](https://github.com/joecirillo/recipe-api/issues/84), by the save
 API; this preview does not change persistence or submit directly to `POST /recipes`.
 
-Instructions become sequentially numbered steps with null tips. A single string
-is one step; string arrays and nested HowToSection/HowToStep structures retain
-their order. Markup is converted to text with block/line boundaries and decoded
+Instructions become sequentially numbered steps. A single string is one step;
+string arrays and nested HowToSection/HowToStep structures retain their order.
+A `HowToTip` (e.g. King Arthur Baking's trailing gluten-free and variation notes)
+is not a step: its text is attached to the `tip` of the step before it in that
+flattened order, even across a section boundary, and several tips on one step are
+joined with newlines. Steps without tips have a null `tip`. A tip with no step
+before it, or without usable text, produces an `INVALID_FIELD` warning. The save
+schema has no length limit for tips, so no save-limit warning applies to them. Markup is converted to text with block/line boundaries and decoded
 entities. Original ingredient strings remain raw source text, which may contain
 markup and entities, and must be rendered as text, not HTML. All preview strings, including decoded names, descriptions, and
 instructions, must be rendered as text rather than inserted with an HTML-rendering
