@@ -9,12 +9,38 @@ properties are not searched, so a recipe nested under another (e.g. `isPartOf`,
 not disqualify a node. Malformed JSON scripts are skipped. The returned fields are
 untrusted `unknown` values; extraction does not validate recipe fields.
 
+The result also has `nodesById`, an index of every object with a string `@id`
+seen while searching, across all JSON-LD scripts on the page, so the mapper can
+resolve references such as Yoast's `"author": { "@id": "…#/schema/person/…" }`.
+The first object that has properties besides `@id` wins; reference-only objects
+are never indexed. A matched Recipe's own properties are not searched, so nodes
+nested only inside the recipe are not indexed.
+
 `parseDurationMinutes(value)` in `../duration.ts` accepts uppercase ISO durations
 with nonnegative integer days, hours, and minutes, and nonnegative seconds that
 may have a fractional part. Days are exactly 24 hours. The total is rounded up to
-whole minutes, so `PT1S` becomes 1 and `PT0S` remains 0. Years, months, weeks,
-fractional days/hours/minutes, negative durations, empty durations, and results
-outside JavaScript's safe integer range return `null`, as do missing values.
+whole minutes, so `PT1S` becomes 1 and `PT0S` remains 0. Zero-valued years,
+months, and weeks are accepted and ignored, so fully padded forms such as
+`P0Y0M0DT0H25M0.000S` (25) and `P0Y0M0DT1H0M0.000S` (60) parse. Non-zero years,
+months, or weeks (e.g. `P1Y`, `P2M`, `P1W`), fractional days/hours/minutes,
+negative durations, empty durations, and results outside JavaScript's safe
+integer range return `null`, as do missing values.
+
+`parsePlainDurationMinutes(value)` in the same module is the mapper's fallback
+when a time is not ISO 8601. It accepts, case-insensitively and with surrounding
+whitespace trimmed, a whole number of hours, a whole number of minutes, or hours
+followed by minutes, each written as a number, whitespace, and a unit:
+
+| Unit     | Accepted spellings                 | Examples                                |
+| -------- | ---------------------------------- | --------------------------------------- |
+| Hours    | `hr`, `hrs`, `hour`, `hours`       | `2 hrs` (120), `1 hour` (60)            |
+| Minutes  | `min`, `mins`, `minute`, `minutes` | `20 minutes` (20), `5 min` (5)          |
+| Combined | hours, whitespace, then minutes    | `1 hour 20 minutes` (80), `1 hr 5 mins` |
+
+Anything else, including approximations (`about 20 minutes`), ranges
+(`20-25 minutes`), fractions (`1.5 hours`), connecting words or punctuation
+(`1 hour and 20 minutes`), and other units, returns `null` and produces an
+`INVALID_DURATION` warning.
 
 ## Preview contract
 
@@ -53,9 +79,14 @@ permitted by the preview contract and, since
 [recipe-api#84](https://github.com/joecirillo/recipe-api/issues/84), by the save
 API; this preview does not change persistence or submit directly to `POST /recipes`.
 
-Instructions become sequentially numbered steps with null tips. A single string
-is one step; string arrays and nested HowToSection/HowToStep structures retain
-their order. Markup is converted to text with block/line boundaries and decoded
+Instructions become sequentially numbered steps. A single string is one step;
+string arrays and nested HowToSection/HowToStep structures retain their order.
+A `HowToTip` (e.g. King Arthur Baking's trailing gluten-free and variation notes)
+is not a step: its text is attached to the `tip` of the step before it in that
+flattened order, even across a section boundary, and several tips on one step are
+joined with newlines. Steps without tips have a null `tip`. A tip with no step
+before it, or without usable text, produces an `INVALID_FIELD` warning. The save
+schema has no length limit for tips, so no save-limit warning applies to them. Markup is converted to text with block/line boundaries and decoded
 entities. Original ingredient strings remain raw source text, which may contain
 markup and entities, and must be rendered as text, not HTML. All preview strings, including decoded names, descriptions, and
 instructions, must be rendered as text rather than inserted with an HTML-rendering
@@ -66,7 +97,12 @@ Cuisine uses the first usable name. Keywords are split on commas; category
 strings are retained as whole names. Tags are deduplicated case-insensitively,
 preserving the first spelling and order. Named cuisine/tags have `id: null`.
 The first supported author name is copied to both `recipe.author` and
-`source.originalAuthor`.
+`source.originalAuthor`. An author object with no `name` but a string `@id`
+(the WordPress/Yoast `@graph` shape, e.g. Budget Bytes and RecipeTin Eats) is
+replaced by the indexed node with that `@id`, which must be a Person or
+Organization with a usable `name`. An inline `name` takes precedence over the
+referenced node. An unresolvable reference keeps the existing `INVALID_FIELD`
+warning on `author` (or `author.name` when the reference is typed).
 
 Image selection accepts strings and typed ImageObjects (`url`, then
 `contentUrl`), including arrays. Relative URLs resolve against `sourceUrl`.
@@ -135,5 +171,6 @@ A successful response contains `"passed":true`; assertion failures return an
 error. Stop the server after checking. The harness covers malformed-script
 recovery, graph selection/counting, Cheerio text decoding, nested instructions,
 nullable ingredients, array yields, durations, image filtering/resolution,
-absent recipes, and save-limit warnings. It passed locally with Wrangler 4.115.0;
+absent recipes, save-limit warnings, and graph `@id` author references with
+zero-padded and plain-English durations and attached `HowToTip` text. It passed locally with Wrangler 4.115.0;
 this verifies local Workers execution, not deployment to Cloudflare.

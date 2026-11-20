@@ -53,7 +53,7 @@ export default {
     equal(extractRecipeJsonLd('<p>No recipe</p>'), null)
 
     const oversized = mapSchemaOrgRecipe(
-      { recipe: { cookTime: 'P30D', name: 'x'.repeat(151) }, recipeCount: 1 },
+      { recipe: { cookTime: 'P30D', name: 'x'.repeat(151) }, recipeCount: 1, nodesById: new Map() },
       { sourceUrl: 'https://example.com/recipe' },
     )
     equal(oversized.recipe.cookingTime, 43200)
@@ -61,10 +61,40 @@ export default {
       oversized.warnings.map(({ field }) => field),
       ['recipe.name', 'recipe.cookingTime'],
     )
+    const graphHtml =
+      '<script type="application/ld+json">' +
+      JSON.stringify({
+        '@graph': [
+          { '@type': 'Person', '@id': '#author', name: 'Jane' },
+          {
+            '@type': 'Recipe',
+            author: { '@id': '#author' },
+            cookTime: 'P0Y0M0DT0H25M0.000S',
+            prepTime: '1 hour 20 minutes',
+            recipeInstructions: ['Bake.', { '@type': 'HowToTip', text: 'Cool first.' }],
+          },
+        ],
+      }) +
+      '</script>'
+    const graphExtracted = extractRecipeJsonLd(graphHtml)
+    ok(graphExtracted)
+    const graphPreview = mapSchemaOrgRecipe(graphExtracted, { sourceUrl: 'https://example.com/r' })
+    equal(graphPreview.recipe.author, 'Jane')
+    equal(graphPreview.recipe.cookingTime, 25)
+    equal(graphPreview.recipe.preparationTime, 80)
+    deepStrictEqual(graphPreview.recipe.steps, [
+      { stepNumber: 1, description: 'Bake.', tip: 'Cool first.' },
+    ])
+    deepStrictEqual(graphPreview.warnings, [])
     return Response.json({
       passed: true,
       runtime: 'workerd',
-      scenarios: ['extraction-and-mapping', 'absent-recipe', 'save-limit-warnings'],
+      scenarios: [
+        'extraction-and-mapping',
+        'absent-recipe',
+        'save-limit-warnings',
+        'graph-author-durations-tips',
+      ],
     })
   },
 }

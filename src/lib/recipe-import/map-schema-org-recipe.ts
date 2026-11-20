@@ -1,4 +1,4 @@
-import { parseDurationMinutes } from '../duration'
+import { parseDurationMinutes, parsePlainDurationMinutes } from '../duration'
 import type { RecipeImportPreview, RecipeImportWarning } from '../types'
 import type { ExtractedRecipeJsonLd } from './extract-recipe-json-ld'
 import { parseRecipeYield } from './parse-recipe-yield'
@@ -87,11 +87,33 @@ function mapIngredients(
   return { ingredients, originalIngredientLines }
 }
 
+type DraftStep = { description: string; tips: string[] }
+
+function attachTip(
+  tip: Record<string, unknown>,
+  field: string,
+  steps: DraftStep[],
+  warnings: RecipeImportWarning[],
+): void {
+  const text = readText(tip.text, `${field}.text`, warnings)
+  if (!text) {
+    if (tip.text == null) {
+      reject(warnings, `${field}.text`, 'This tip has no text. Add the missing tip manually.')
+    }
+    return
+  }
+  const previousStep = steps.at(-1)
+  if (previousStep) previousStep.tips.push(text)
+  else {
+    reject(warnings, field, 'Ignored a tip with no step before it. Add it to a step manually.')
+  }
+}
+
 function mapInstructions(
   value: unknown,
   warnings: RecipeImportWarning[],
 ): NonNullable<RecipeImportPreview['recipe']['steps']> {
-  const descriptions: string[] = []
+  const steps: DraftStep[] = []
   const pending = value == null ? [] : [{ value, field: 'recipeInstructions' }]
   while (pending.length) {
     const entry = pending.pop()!
@@ -102,7 +124,7 @@ function mapInstructions(
       }
     } else if (typeof instruction === 'string') {
       const text = readText(instruction, field, warnings)
-      if (text) descriptions.push(text)
+      if (text) steps.push({ description: text, tips: [] })
     } else if (isObject(instruction) && hasType(instruction, 'HowToSection')) {
       if (Array.isArray(instruction.itemListElement)) {
         pending.push({ value: instruction.itemListElement, field: `${field}.itemListElement` })
@@ -115,7 +137,7 @@ function mapInstructions(
       }
     } else if (isObject(instruction) && hasType(instruction, 'HowToStep')) {
       const text = readText(instruction.text, `${field}.text`, warnings)
-      if (text) descriptions.push(text)
+      if (text) steps.push({ description: text, tips: [] })
       else if (instruction.text == null) {
         reject(
           warnings,
@@ -123,6 +145,8 @@ function mapInstructions(
           'This step has no text. Add the missing instruction manually.',
         )
       }
+    } else if (isObject(instruction) && hasType(instruction, 'HowToTip')) {
+      attachTip(instruction, field, steps, warnings)
     } else {
       reject(
         warnings,
@@ -131,18 +155,28 @@ function mapInstructions(
       )
     }
   }
-  return descriptions.map((description, index) => ({
+  return steps.map(({ description, tips }, index) => ({
     stepNumber: index + 1,
     description,
-    tip: null,
+    tip: tips.length ? tips.join('\n') : null,
   }))
 }
 
-function mapAuthor(value: unknown, warnings: RecipeImportWarning[]): string | undefined {
+function resolveReference(value: unknown, nodesById: ExtractedRecipeJsonLd['nodesById']): unknown {
+  if (!isObject(value) || value.name != null || typeof value['@id'] !== 'string') return value
+  return nodesById.get(value['@id']) ?? value
+}
+
+function mapAuthor(
+  value: unknown,
+  nodesById: ExtractedRecipeJsonLd['nodesById'],
+  warnings: RecipeImportWarning[],
+): string | undefined {
   if (value == null) return undefined
   const entries = Array.isArray(value) ? value : [value]
-  for (const [index, entry] of entries.entries()) {
+  for (const [index, reference] of entries.entries()) {
     const field = Array.isArray(value) ? `author[${index}]` : 'author'
+    const entry = resolveReference(reference, nodesById)
     if (typeof entry === 'string') {
       const name = readText(entry, field, warnings)
       if (name) return name
@@ -206,7 +240,7 @@ function mapDuration(
   field: string,
   warnings: RecipeImportWarning[],
 ): number | null {
-  const minutes = parseDurationMinutes(value)
+  const minutes = parseDurationMinutes(value) ?? parsePlainDurationMinutes(value)
   if (value != null && minutes === null) {
     warnings.push({
       code: 'INVALID_DURATION',
@@ -249,7 +283,7 @@ export function mapSchemaOrgRecipe(
 
   const name = readText(node.name, 'name', warnings)
   const description = readText(node.description, 'description', warnings)
-  const author = mapAuthor(node.author, warnings)
+  const author = mapAuthor(node.author, extracted.nodesById, warnings)
   const imageUrl = mapImage(node.image, context.sourceUrl, warnings)
   const cuisines = readStrings(node.recipeCuisine, 'recipeCuisine', warnings)
   const yieldResult = parseRecipeYield(node.recipeYield)
