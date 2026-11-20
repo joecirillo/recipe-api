@@ -12,9 +12,12 @@ untrusted `unknown` values; extraction does not validate recipe fields.
 `parseDurationMinutes(value)` in `../duration.ts` accepts uppercase ISO durations
 with nonnegative integer days, hours, and minutes, and nonnegative seconds that
 may have a fractional part. Days are exactly 24 hours. The total is rounded up to
-whole minutes, so `PT1S` becomes 1 and `PT0S` remains 0. Years, months, weeks,
-fractional days/hours/minutes, negative durations, empty durations, and results
-outside JavaScript's safe integer range return `null`, as do missing values.
+whole minutes, so `PT1S` becomes 1 and `PT0S` remains 0. Zero-valued years,
+months, and weeks are accepted and ignored, so fully padded forms such as
+`P0Y0M0DT0H25M0.000S` (25) and `P0Y0M0DT1H0M0.000S` (60) parse. Non-zero years,
+months, or weeks (e.g. `P1Y`, `P2M`, `P1W`), fractional days/hours/minutes,
+negative durations, empty durations, and results outside JavaScript's safe
+integer range return `null`, as do missing values.
 
 ## Preview contract
 
