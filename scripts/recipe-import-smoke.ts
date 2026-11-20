@@ -53,7 +53,7 @@ export default {
     equal(extractRecipeJsonLd('<p>No recipe</p>'), null)
 
     const oversized = mapSchemaOrgRecipe(
-      { recipe: { cookTime: 'P30D', name: 'x'.repeat(151) }, recipeCount: 1 },
+      { recipe: { cookTime: 'P30D', name: 'x'.repeat(151) }, recipeCount: 1, nodesById: new Map() },
       { sourceUrl: 'https://example.com/recipe' },
     )
     equal(oversized.recipe.cookingTime, 43200)

@@ -4,7 +4,7 @@ import { mapSchemaOrgRecipe } from './map-schema-org-recipe'
 
 const context = { sourceUrl: 'https://example.com/recipes/soup' }
 const preview = (recipe: Record<string, unknown>) =>
-  mapSchemaOrgRecipe({ recipe, recipeCount: 1 }, context)
+  mapSchemaOrgRecipe({ recipe, recipeCount: 1, nodesById: new Map() }, context)
 
 const rawIngredients = ['  2 cups flour  ', 'Salt & pepper to taste']
 

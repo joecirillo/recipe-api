@@ -9,6 +9,13 @@ properties are not searched, so a recipe nested under another (e.g. `isPartOf`,
 not disqualify a node. Malformed JSON scripts are skipped. The returned fields are
 untrusted `unknown` values; extraction does not validate recipe fields.
 
+The result also has `nodesById`, an index of every object with a string `@id`
+seen while searching, across all JSON-LD scripts on the page, so the mapper can
+resolve references such as Yoast's `"author": { "@id": "…#/schema/person/…" }`.
+The first object that has properties besides `@id` wins; reference-only objects
+are never indexed. A matched Recipe's own properties are not searched, so nodes
+nested only inside the recipe are not indexed.
+
 `parseDurationMinutes(value)` in `../duration.ts` accepts uppercase ISO durations
 with nonnegative integer days, hours, and minutes, and nonnegative seconds that
 may have a fractional part. Days are exactly 24 hours. The total is rounded up to
