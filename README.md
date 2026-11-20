@@ -36,6 +36,16 @@ With any filter (`name`, `tag`, `cuisine`, `ingredient`, `tagId`, `cuisineId`, `
 route searches instead: `data` has the same item shape but holds every match, there is no `meta`,
 and `cursor`/`limit` are ignored. Paginating search is not implemented yet.
 
+## Random recipe
+
+`GET /recipes/random` returns one recipe picked uniformly from the whole table, in the same full
+shape as `GET /recipes/:id` (stored image keys resolved to public URLs), with no `meta`. It returns
+`404` with the standard error envelope (`"message": "No recipes found"`) when there are no recipes.
+Each call picks independently, so consecutive calls can return the same recipe.
+
+The pick uses `ORDER BY random() LIMIT 1`, which scans the table; switch to an id-range pick if
+the table grows large.
+
 ## Recipe import preview
 
 `POST /recipes/import-preview` with `{ "url": "https://…" }` fetches a recipe page, extracts schema.org
