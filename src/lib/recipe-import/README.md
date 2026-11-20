@@ -92,7 +92,12 @@ Cuisine uses the first usable name. Keywords are split on commas; category
 strings are retained as whole names. Tags are deduplicated case-insensitively,
 preserving the first spelling and order. Named cuisine/tags have `id: null`.
 The first supported author name is copied to both `recipe.author` and
-`source.originalAuthor`.
+`source.originalAuthor`. An author object with no `name` but a string `@id`
+(the WordPress/Yoast `@graph` shape, e.g. Budget Bytes and RecipeTin Eats) is
+replaced by the indexed node with that `@id`, which must be a Person or
+Organization with a usable `name`. An inline `name` takes precedence over the
+referenced node. An unresolvable reference keeps the existing `INVALID_FIELD`
+warning on `author` (or `author.name` when the reference is typed).
 
 Image selection accepts strings and typed ImageObjects (`url`, then
 `contentUrl`), including arrays. Relative URLs resolve against `sourceUrl`.

@@ -235,6 +235,78 @@ describe('mapSchemaOrgRecipe', () => {
     expect(result.source.originalAuthor).toBe(expected)
   })
 
+  it.each([
+    {
+      site: 'Budget Bytes',
+      sourceUrl: 'https://www.budgetbytes.com/one-pot-chili-pasta/',
+      personId: 'https://www.budgetbytes.com/#/schema/person/de53c1c4f0b36d0ff5ad3dd8fd7f9c7e',
+      name: 'Beth - Budget Bytes',
+    },
+    {
+      site: 'RecipeTin Eats',
+      sourceUrl: 'https://www.recipetineats.com/chicken-chow-mein/',
+      personId: 'https://www.recipetineats.com/#/schema/person/9e39c0a4b25d4d1ba08fd7bf4d4ba4a1',
+      name: 'Nagi',
+    },
+  ])('resolves a $site Yoast author reference to the Person name', (site) => {
+    const html =
+      '<script type="application/ld+json">' +
+      JSON.stringify({
+        '@context': 'https://schema.org',
+        '@graph': [
+          { '@type': 'WebPage', '@id': site.sourceUrl, author: { '@id': site.personId } },
+          {
+            '@type': 'Person',
+            '@id': site.personId,
+            name: site.name,
+            image: { '@type': 'ImageObject', '@id': `${site.sourceUrl}#personlogo` },
+          },
+          {
+            '@type': 'Recipe',
+            '@id': `${site.sourceUrl}#recipe`,
+            name: 'Dinner',
+            author: { '@id': site.personId },
+            isPartOf: { '@id': site.sourceUrl },
+          },
+        ],
+      }) +
+      '</script>'
+    const result = mapSchemaOrgRecipe(extractRecipeJsonLd(html)!, { sourceUrl: site.sourceUrl })
+    expect(result.recipe.author).toBe(site.name)
+    expect(result.source.originalAuthor).toBe(site.name)
+    expect(result.warnings).not.toContainEqual(expect.objectContaining({ field: 'author' }))
+  })
+
+  it.each([
+    [{ '@id': '#missing' }, 'author'],
+    [{ '@id': '#webpage' }, 'author'],
+    [{ '@id': '#nameless' }, 'author.name'],
+    [{ '@type': 'Person', '@id': '#missing' }, 'author.name'],
+  ])('keeps the author warning when reference %j does not resolve to a name', (author, field) => {
+    const nodesById = new Map([
+      ['#webpage', { '@type': 'WebPage', '@id': '#webpage', name: 'Home' }],
+      ['#nameless', { '@type': 'Person', '@id': '#nameless' }],
+    ])
+    const result = mapSchemaOrgRecipe({ recipe: { author }, recipeCount: 1, nodesById }, context)
+    expect(result.recipe).not.toHaveProperty('author')
+    expect(result.warnings).toEqual([expect.objectContaining({ code: 'INVALID_FIELD', field })])
+  })
+
+  it('prefers an inline author name over the referenced node', () => {
+    const nodesById = new Map([['#p', { '@type': 'Person', '@id': '#p', name: 'Graph' }]])
+    const author = { '@type': 'Person', '@id': '#p', name: 'Inline' }
+    const result = mapSchemaOrgRecipe({ recipe: { author }, recipeCount: 1, nodesById }, context)
+    expect(result.recipe.author).toBe('Inline')
+  })
+
+  it('resolves references inside an author array in order', () => {
+    const nodesById = new Map([['#p', { '@type': 'Person', '@id': '#p', name: 'Jane' }]])
+    const author = [{ '@id': '#missing' }, { '@id': '#p' }]
+    const result = mapSchemaOrgRecipe({ recipe: { author }, recipeCount: 1, nodesById }, context)
+    expect(result.recipe.author).toBe('Jane')
+    expect(result.warnings.map(({ field }) => field)).toEqual(['author[0]'])
+  })
+
   it('does not coerce an invalid author', () => {
     const result = preview({ author: { '@type': 'Person', name: {} } })
     expect(result.recipe).not.toHaveProperty('author')

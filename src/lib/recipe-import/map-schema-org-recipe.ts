@@ -138,11 +138,21 @@ function mapInstructions(
   }))
 }
 
-function mapAuthor(value: unknown, warnings: RecipeImportWarning[]): string | undefined {
+function resolveReference(value: unknown, nodesById: ExtractedRecipeJsonLd['nodesById']): unknown {
+  if (!isObject(value) || value.name != null || typeof value['@id'] !== 'string') return value
+  return nodesById.get(value['@id']) ?? value
+}
+
+function mapAuthor(
+  value: unknown,
+  nodesById: ExtractedRecipeJsonLd['nodesById'],
+  warnings: RecipeImportWarning[],
+): string | undefined {
   if (value == null) return undefined
   const entries = Array.isArray(value) ? value : [value]
-  for (const [index, entry] of entries.entries()) {
+  for (const [index, reference] of entries.entries()) {
     const field = Array.isArray(value) ? `author[${index}]` : 'author'
+    const entry = resolveReference(reference, nodesById)
     if (typeof entry === 'string') {
       const name = readText(entry, field, warnings)
       if (name) return name
@@ -249,7 +259,7 @@ export function mapSchemaOrgRecipe(
 
   const name = readText(node.name, 'name', warnings)
   const description = readText(node.description, 'description', warnings)
-  const author = mapAuthor(node.author, warnings)
+  const author = mapAuthor(node.author, extracted.nodesById, warnings)
   const imageUrl = mapImage(node.image, context.sourceUrl, warnings)
   const cuisines = readStrings(node.recipeCuisine, 'recipeCuisine', warnings)
   const yieldResult = parseRecipeYield(node.recipeYield)
