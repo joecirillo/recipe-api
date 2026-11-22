@@ -1,4 +1,4 @@
-import { and, desc, eq, ilike, inArray, lt, type SQL } from 'drizzle-orm'
+import { and, desc, eq, ilike, inArray, lt, sql, type SQL } from 'drizzle-orm'
 import { createDb } from '../db/client'
 import {
   cuisines,
@@ -284,6 +284,18 @@ export async function searchRecipes(db: Db, params: RecipeSearchParams): Promise
 
 export async function getRecipe(db: Db, id: number): Promise<RecipeResponse> {
   return fetchFullRecipe(db, id)
+}
+
+// ORDER BY random() scans the whole table; fine at current size, but switch to an
+// id-range pick if the table grows large (see #106).
+export async function getRandomRecipe(db: Db): Promise<RecipeResponse> {
+  const [row] = await db
+    .select({ id: recipes.id })
+    .from(recipes)
+    .orderBy(sql`random()`)
+    .limit(1)
+  if (!row) throw new NotFoundError('No recipes found')
+  return fetchFullRecipe(db, row.id)
 }
 
 export async function createRecipe(db: Db, input: RecipeSaveInput): Promise<RecipeResponse> {

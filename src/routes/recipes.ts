@@ -14,6 +14,7 @@ import { parseAllowedHosts } from '../lib/recipe-import/validate-import-url'
 import {
   createRecipe,
   deleteRecipe,
+  getRandomRecipe,
   getRecipe,
   listRecipes,
   searchRecipes,
@@ -246,6 +247,15 @@ recipeRouter.post('/import-preview', requestLogger('recipe import preview'), asy
   }
   const preview = mapSchemaOrgRecipe(extracted, { sourceUrl: page.finalUrl })
   return c.json(buildSuccess(200, 'Recipe parsed', preview), 200)
+})
+
+recipeRouter.get('/random', async (c) => {
+  const db = createDb(c.env.HYPERDRIVE.connectionString)
+  const data = await getRandomRecipe(db)
+  return c.json(
+    buildSuccess(200, 'Recipe retrieved', withPublicImageUrl(data, c.env.R2_PUBLIC_URL)),
+    200,
+  )
 })
 
 recipeRouter.get('/:id', async (c) => {

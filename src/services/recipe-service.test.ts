@@ -1,8 +1,10 @@
-import { desc, lt } from 'drizzle-orm'
+import { desc, eq, lt } from 'drizzle-orm'
+import { PgDialect } from 'drizzle-orm/pg-core'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   createRecipe,
   deleteRecipe,
+  getRandomRecipe,
   getRecipe,
   listRecipes,
   searchRecipes,
@@ -293,6 +295,43 @@ const RECIPE_ROW = {
   tags: [],
   steps: [],
 }
+
+function makeRandomDb(pickedRows: { id: number }[]) {
+  const chain = {
+    from: vi.fn().mockReturnThis(),
+    orderBy: vi.fn().mockReturnThis(),
+    limit: vi.fn().mockResolvedValue(pickedRows),
+  }
+  const findFirst = vi.fn().mockResolvedValue({ ...RECIPE_ROW, id: pickedRows[0]?.id })
+  const db = {
+    select: vi.fn().mockReturnValue(chain),
+    query: { recipes: { findFirst } },
+  } as unknown as Parameters<typeof getRandomRecipe>[0]
+  return { db, chain, findFirst }
+}
+
+describe('getRandomRecipe', () => {
+  it('picks one id from the whole table in random order', async () => {
+    const { db, chain } = makeRandomDb([{ id: 7 }])
+    await getRandomRecipe(db)
+    const [ordering] = chain.orderBy.mock.calls[0]
+    expect(new PgDialect().sqlToQuery(ordering).sql).toBe('random()')
+    expect(chain.limit).toHaveBeenCalledWith(1)
+  })
+
+  it('returns the full recipe for the picked id', async () => {
+    const { db, findFirst } = makeRandomDb([{ id: 7 }])
+    const result = await getRandomRecipe(db)
+    expect(findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: eq(recipes.id, 7) }))
+    expect(result).toMatchObject({ id: 7, name: 'Pasta', cuisine: { id: 1, name: 'Italian' } })
+  })
+
+  it('throws NotFoundError when there are no recipes', async () => {
+    const { db, findFirst } = makeRandomDb([])
+    await expect(getRandomRecipe(db)).rejects.toThrow(new NotFoundError('No recipes found'))
+    expect(findFirst).not.toHaveBeenCalled()
+  })
+})
 
 const CREATE_RECIPE_INPUT: Parameters<typeof createRecipe>[1] = {
   name: 'Pasta',

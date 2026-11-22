@@ -619,6 +619,55 @@ describe('POST /recipes', () => {
   })
 })
 
+describe('GET /recipes/random', () => {
+  afterEach(() => vi.clearAllMocks())
+
+  it('returns 200 with a full recipe', async () => {
+    vi.mocked(recipeService.getRandomRecipe).mockResolvedValue(FULL_RECIPE)
+    const res = await request('/recipes/random')
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as Record<string, any>
+    expect(body.message).toBe('Recipe retrieved')
+    expect(body.data.id).toBe(FULL_RECIPE.id)
+    expect(body.data.cuisine).toEqual(FULL_RECIPE.cuisine)
+    expect(body.data.ingredients).toEqual(FULL_RECIPE.ingredients)
+    expect(body.data.steps).toEqual(FULL_RECIPE.steps)
+  })
+
+  it('is not matched as GET /recipes/:id', async () => {
+    vi.mocked(recipeService.getRandomRecipe).mockResolvedValue(FULL_RECIPE)
+    const res = await request('/recipes/random')
+    expect(res.status).toBe(200)
+    expect(vi.mocked(recipeService.getRandomRecipe)).toHaveBeenCalledOnce()
+    expect(vi.mocked(recipeService.getRecipe)).not.toHaveBeenCalled()
+  })
+
+  it('resolves a stored image key to a public URL', async () => {
+    vi.mocked(recipeService.getRandomRecipe).mockResolvedValue({
+      ...FULL_RECIPE,
+      imageUrl: 'recipes/xyz-789.jpg',
+    })
+    const res = await request('/recipes/random')
+    const body = (await res.json()) as Record<string, any>
+    expect(body.data.imageUrl).toBe(`${TEST_ENV.R2_PUBLIC_URL}/recipes/xyz-789.jpg`)
+  })
+
+  it('returns 404 with the error envelope when there are no recipes', async () => {
+    vi.mocked(recipeService.getRandomRecipe).mockRejectedValue(
+      new NotFoundError('No recipes found'),
+    )
+    const res = await request('/recipes/random')
+    expect(res.status).toBe(404)
+    const body = (await res.json()) as Record<string, any>
+    expect(body).toEqual({
+      timestamp: expect.any(String),
+      status: 404,
+      message: 'No recipes found',
+      path: '/recipes/random',
+    })
+  })
+})
+
 describe('GET /recipes/:id', () => {
   afterEach(() => vi.clearAllMocks())
 
