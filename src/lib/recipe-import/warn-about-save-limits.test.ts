@@ -3,7 +3,10 @@ import { mapSchemaOrgRecipe } from './map-schema-org-recipe'
 import { warnAboutSaveLimits } from './warn-about-save-limits'
 
 const map = (recipe: Record<string, unknown>) =>
-  mapSchemaOrgRecipe({ recipe, recipeCount: 1 }, { sourceUrl: 'https://example.com/recipe' })
+  mapSchemaOrgRecipe(
+    { recipe, recipeCount: 1, nodesById: new Map() },
+    { sourceUrl: 'https://example.com/recipe' },
+  )
 
 describe('preview save limits', () => {
   it.each([

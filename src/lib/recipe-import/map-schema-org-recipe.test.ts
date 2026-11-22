@@ -4,7 +4,7 @@ import { mapSchemaOrgRecipe } from './map-schema-org-recipe'
 
 const context = { sourceUrl: 'https://example.com/recipes/soup' }
 const preview = (recipe: Record<string, unknown>) =>
-  mapSchemaOrgRecipe({ recipe, recipeCount: 1 }, context)
+  mapSchemaOrgRecipe({ recipe, recipeCount: 1, nodesById: new Map() }, context)
 
 const rawIngredients = ['  2 cups flour  ', 'Salt & pepper to taste']
 
@@ -222,6 +222,104 @@ describe('mapSchemaOrgRecipe', () => {
     ])
   })
 
+  it('attaches King Arthur HowToTip entries to the step before them', () => {
+    const result = preview({
+      '@type': 'Recipe',
+      recipeInstructions: [
+        { '@type': 'HowToStep', text: 'Preheat the oven to 350°F.' },
+        { '@type': 'HowToStep', text: '<p>Bake for 25 to 30 minutes.</p>' },
+        {
+          '@type': 'HowToTip',
+          text: 'Want to make this recipe gluten-free? Substitute King Arthur Measure for Measure Flour.',
+        },
+        { '@type': 'HowToTip', text: 'For mocha brownies, add 1 teaspoon espresso powder.' },
+        { '@type': 'HowToTip', text: 'Store brownies, well wrapped, for up to 5 days.' },
+        { '@type': 'HowToTip', text: '<p>Freeze for longer storage.</p>' },
+      ],
+    })
+    expect(result.recipe.steps).toEqual([
+      { stepNumber: 1, description: 'Preheat the oven to 350°F.', tip: null },
+      {
+        stepNumber: 2,
+        description: 'Bake for 25 to 30 minutes.',
+        tip: [
+          'Want to make this recipe gluten-free? Substitute King Arthur Measure for Measure Flour.',
+          'For mocha brownies, add 1 teaspoon espresso powder.',
+          'Store brownies, well wrapped, for up to 5 days.',
+          'Freeze for longer storage.',
+        ].join('\n'),
+      },
+    ])
+    expect(result.warnings).toEqual([])
+  })
+
+  it('attaches a tip to the previous step across sections and accepts full type IRIs', () => {
+    const result = preview({
+      recipeInstructions: [
+        { '@type': 'HowToSection', itemListElement: ['Mix.'] },
+        {
+          '@type': 'HowToSection',
+          itemListElement: [{ '@type': 'https://schema.org/HowToTip', text: 'Do not overmix.' }],
+        },
+        'Bake.',
+      ],
+    })
+    expect(result.recipe.steps).toEqual([
+      { stepNumber: 1, description: 'Mix.', tip: 'Do not overmix.' },
+      { stepNumber: 2, description: 'Bake.', tip: null },
+    ])
+  })
+
+  it('warns about tips without a preceding step or without text', () => {
+    const result = preview({
+      recipeInstructions: [
+        { '@type': 'HowToTip', text: 'Read the recipe first.' },
+        'Mix.',
+        { '@type': 'HowToTip' },
+        { '@type': 'HowToTip', text: 7 },
+        { '@type': 'HowToTip', text: '<p> </p>' },
+      ],
+    })
+    expect(result.recipe.steps).toEqual([{ stepNumber: 1, description: 'Mix.', tip: null }])
+    expect(result.warnings).toEqual(
+      [
+        'recipeInstructions[0]',
+        'recipeInstructions[2].text',
+        'recipeInstructions[3].text',
+        'recipeInstructions[4].text',
+      ].map((field) => expect.objectContaining({ code: 'INVALID_FIELD', field })),
+    )
+  })
+
+  it.each([
+    ['a step without text', { '@type': 'HowToStep' }, 'recipeInstructions[1].text'],
+    ['an empty string step', '<br>', 'recipeInstructions[1]'],
+    ['an unsupported instruction', { '@type': 'HowToDirection' }, 'recipeInstructions[1]'],
+    [
+      'a broken section',
+      { '@type': 'HowToSection', itemListElement: {} },
+      'recipeInstructions[1].itemListElement',
+    ],
+  ])('warns instead of attaching a tip that follows %s', (_, dropped, droppedField) => {
+    const result = preview({
+      recipeInstructions: ['Mix.', dropped, { '@type': 'HowToTip', text: 'Cool first.' }],
+    })
+    expect(result.recipe.steps).toEqual([{ stepNumber: 1, description: 'Mix.', tip: null }])
+    expect(result.warnings.map(({ field }) => field)).toEqual([
+      droppedField,
+      'recipeInstructions[2]',
+    ])
+  })
+
+  it('keeps a long joined tip without a save-limit warning because tips are unbounded', () => {
+    const tip = 'x'.repeat(5000)
+    const result = preview({
+      recipeInstructions: ['Mix.', { '@type': 'HowToTip', text: tip }],
+    })
+    expect(result.recipe.steps?.[0].tip).toBe(tip)
+    expect(result.warnings).toEqual([])
+  })
+
   it.each([
     ['Jane', 'Jane'],
     [{ '@type': 'Person', name: 'Jane' }, 'Jane'],
@@ -235,12 +333,117 @@ describe('mapSchemaOrgRecipe', () => {
     expect(result.source.originalAuthor).toBe(expected)
   })
 
+  it.each([
+    {
+      site: 'Budget Bytes',
+      sourceUrl: 'https://www.budgetbytes.com/one-pot-chili-pasta/',
+      personId: 'https://www.budgetbytes.com/#/schema/person/de53c1c4f0b36d0ff5ad3dd8fd7f9c7e',
+      name: 'Beth - Budget Bytes',
+    },
+    {
+      site: 'RecipeTin Eats',
+      sourceUrl: 'https://www.recipetineats.com/chicken-chow-mein/',
+      personId: 'https://www.recipetineats.com/#/schema/person/9e39c0a4b25d4d1ba08fd7bf4d4ba4a1',
+      name: 'Nagi',
+    },
+  ])('resolves a $site Yoast author reference to the Person name', (site) => {
+    const html =
+      '<script type="application/ld+json">' +
+      JSON.stringify({
+        '@context': 'https://schema.org',
+        '@graph': [
+          { '@type': 'WebPage', '@id': site.sourceUrl, author: { '@id': site.personId } },
+          {
+            '@type': 'Person',
+            '@id': site.personId,
+            name: site.name,
+            image: { '@type': 'ImageObject', '@id': `${site.sourceUrl}#personlogo` },
+          },
+          {
+            '@type': 'Recipe',
+            '@id': `${site.sourceUrl}#recipe`,
+            name: 'Dinner',
+            author: { '@id': site.personId },
+            isPartOf: { '@id': site.sourceUrl },
+          },
+        ],
+      }) +
+      '</script>'
+    const result = mapSchemaOrgRecipe(extractRecipeJsonLd(html)!, { sourceUrl: site.sourceUrl })
+    expect(result.recipe.author).toBe(site.name)
+    expect(result.source.originalAuthor).toBe(site.name)
+    expect(result.warnings).not.toContainEqual(expect.objectContaining({ field: 'author' }))
+  })
+
+  it.each([
+    [{ '@id': '#missing' }, 'author'],
+    [{ '@id': '#webpage' }, 'author'],
+    [{ '@id': '#nameless' }, 'author.name'],
+    [{ '@type': 'Person', '@id': '#missing' }, 'author.name'],
+  ])('keeps the author warning when reference %j does not resolve to a name', (author, field) => {
+    const nodesById = new Map([
+      ['#webpage', { '@type': 'WebPage', '@id': '#webpage', name: 'Home' }],
+      ['#nameless', { '@type': 'Person', '@id': '#nameless' }],
+    ])
+    const result = mapSchemaOrgRecipe({ recipe: { author }, recipeCount: 1, nodesById }, context)
+    expect(result.recipe).not.toHaveProperty('author')
+    expect(result.warnings).toEqual([expect.objectContaining({ code: 'INVALID_FIELD', field })])
+  })
+
+  it('prefers an inline author name over the referenced node', () => {
+    const nodesById = new Map([['#p', { '@type': 'Person', '@id': '#p', name: 'Graph' }]])
+    const author = { '@type': 'Person', '@id': '#p', name: 'Inline' }
+    const result = mapSchemaOrgRecipe({ recipe: { author }, recipeCount: 1, nodesById }, context)
+    expect(result.recipe.author).toBe('Inline')
+  })
+
+  it('resolves references inside an author array in order', () => {
+    const nodesById = new Map([['#p', { '@type': 'Person', '@id': '#p', name: 'Jane' }]])
+    const author = [{ '@id': '#missing' }, { '@id': '#p' }]
+    const result = mapSchemaOrgRecipe({ recipe: { author }, recipeCount: 1, nodesById }, context)
+    expect(result.recipe.author).toBe('Jane')
+    expect(result.warnings.map(({ field }) => field)).toEqual(['author[0]'])
+  })
+
   it('does not coerce an invalid author', () => {
     const result = preview({ author: { '@type': 'Person', name: {} } })
     expect(result.recipe).not.toHaveProperty('author')
     expect(result.source.originalAuthor).toBeNull()
     expect(result.warnings[0]).toMatchObject({ code: 'INVALID_FIELD', field: 'author.name' })
   })
+
+  it('maps Food Network zero-padded ISO durations', () => {
+    const result = preview({
+      '@type': 'Recipe',
+      prepTime: 'P0Y0M0DT0H15M0.000S',
+      cookTime: 'P0Y0M0DT0H25M0.000S',
+      totalTime: 'P0Y0M0DT1H0M0.000S',
+    })
+    expect(result.recipe).toMatchObject({ preparationTime: 15, cookingTime: 25 })
+    expect(result.warnings).toEqual([])
+  })
+
+  it('maps Bon Appétit plain-English durations', () => {
+    const result = preview({
+      '@type': 'Recipe',
+      prepTime: '1 hour 20 minutes',
+      cookTime: '20 minutes',
+      totalTime: '40 minutes',
+    })
+    expect(result.recipe).toMatchObject({ preparationTime: 80, cookingTime: 20 })
+    expect(result.warnings).toEqual([])
+  })
+
+  it.each(['about 20 minutes', '20-25 minutes', 'P1Y', 'P2M'])(
+    'leaves unsupported duration %j empty with a warning',
+    (cookTime) => {
+      const result = preview({ cookTime })
+      expect(result.recipe.cookingTime).toBeNull()
+      expect(result.warnings).toEqual([
+        expect.objectContaining({ code: 'INVALID_DURATION', field: 'cookTime' }),
+      ])
+    },
+  )
 
   it.each([
     ['https://images.example.com/a.jpg', 'https://images.example.com/a.jpg'],
