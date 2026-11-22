@@ -291,6 +291,26 @@ describe('mapSchemaOrgRecipe', () => {
     )
   })
 
+  it.each([
+    ['a step without text', { '@type': 'HowToStep' }, 'recipeInstructions[1].text'],
+    ['an empty string step', '<br>', 'recipeInstructions[1]'],
+    ['an unsupported instruction', { '@type': 'HowToDirection' }, 'recipeInstructions[1]'],
+    [
+      'a broken section',
+      { '@type': 'HowToSection', itemListElement: {} },
+      'recipeInstructions[1].itemListElement',
+    ],
+  ])('warns instead of attaching a tip that follows %s', (_, dropped, droppedField) => {
+    const result = preview({
+      recipeInstructions: ['Mix.', dropped, { '@type': 'HowToTip', text: 'Cool first.' }],
+    })
+    expect(result.recipe.steps).toEqual([{ stepNumber: 1, description: 'Mix.', tip: null }])
+    expect(result.warnings.map(({ field }) => field)).toEqual([
+      droppedField,
+      'recipeInstructions[2]',
+    ])
+  })
+
   it('keeps a long joined tip without a save-limit warning because tips are unbounded', () => {
     const tip = 'x'.repeat(5000)
     const result = preview({

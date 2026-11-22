@@ -85,7 +85,9 @@ A `HowToTip` (e.g. King Arthur Baking's trailing gluten-free and variation notes
 is not a step: its text is attached to the `tip` of the step before it in that
 flattened order, even across a section boundary, and several tips on one step are
 joined with newlines. Steps without tips have a null `tip`. A tip with no step
-before it, or without usable text, produces an `INVALID_FIELD` warning. The save
+before it, a tip that follows an instruction that was dropped with a warning,
+and a tip without usable text each produce an `INVALID_FIELD` warning instead of
+attaching to an earlier step. The save
 schema has no length limit for tips, so no save-limit warning applies to them. Markup is converted to text with block/line boundaries and decoded
 entities. Original ingredient strings remain raw source text, which may contain
 markup and entities, and must be rendered as text, not HTML. All preview strings, including decoded names, descriptions, and

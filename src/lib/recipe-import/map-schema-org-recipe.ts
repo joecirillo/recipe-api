@@ -92,7 +92,7 @@ type DraftStep = { description: string; tips: string[] }
 function attachTip(
   tip: Record<string, unknown>,
   field: string,
-  steps: DraftStep[],
+  previousStep: DraftStep | undefined,
   warnings: RecipeImportWarning[],
 ): void {
   const text = readText(tip.text, `${field}.text`, warnings)
@@ -102,10 +102,13 @@ function attachTip(
     }
     return
   }
-  const previousStep = steps.at(-1)
   if (previousStep) previousStep.tips.push(text)
   else {
-    reject(warnings, field, 'Ignored a tip with no step before it. Add it to a step manually.')
+    reject(
+      warnings,
+      field,
+      'Ignored a tip that does not follow an imported step. Add it to a step manually.',
+    )
   }
 }
 
@@ -114,6 +117,13 @@ function mapInstructions(
   warnings: RecipeImportWarning[],
 ): NonNullable<RecipeImportPreview['recipe']['steps']> {
   const steps: DraftStep[] = []
+  // A tip belongs to the instruction right before it; after a dropped
+  // instruction, attaching it to an earlier step would mislabel it.
+  let previousStep: DraftStep | undefined
+  const addStep = (text: string | undefined): void => {
+    previousStep = text ? { description: text, tips: [] } : undefined
+    if (previousStep) steps.push(previousStep)
+  }
   const pending = value == null ? [] : [{ value, field: 'recipeInstructions' }]
   while (pending.length) {
     const entry = pending.pop()!
@@ -123,12 +133,12 @@ function mapInstructions(
         pending.push({ value: instruction[index], field: `${field}[${index}]` })
       }
     } else if (typeof instruction === 'string') {
-      const text = readText(instruction, field, warnings)
-      if (text) steps.push({ description: text, tips: [] })
+      addStep(readText(instruction, field, warnings))
     } else if (isObject(instruction) && hasType(instruction, 'HowToSection')) {
       if (Array.isArray(instruction.itemListElement)) {
         pending.push({ value: instruction.itemListElement, field: `${field}.itemListElement` })
       } else {
+        previousStep = undefined
         reject(
           warnings,
           `${field}.itemListElement`,
@@ -137,8 +147,8 @@ function mapInstructions(
       }
     } else if (isObject(instruction) && hasType(instruction, 'HowToStep')) {
       const text = readText(instruction.text, `${field}.text`, warnings)
-      if (text) steps.push({ description: text, tips: [] })
-      else if (instruction.text == null) {
+      addStep(text)
+      if (!text && instruction.text == null) {
         reject(
           warnings,
           `${field}.text`,
@@ -146,8 +156,9 @@ function mapInstructions(
         )
       }
     } else if (isObject(instruction) && hasType(instruction, 'HowToTip')) {
-      attachTip(instruction, field, steps, warnings)
+      attachTip(instruction, field, previousStep, warnings)
     } else {
+      previousStep = undefined
       reject(
         warnings,
         field,
